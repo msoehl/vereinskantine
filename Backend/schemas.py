@@ -1,7 +1,8 @@
 from pydantic import BaseModel
 from typing import List
+from datetime import datetime
 
-class Product(BaseModel):
+class ProductOut(BaseModel):
     id: int
     name: str
     price: float
@@ -12,15 +13,21 @@ class ProductCreate(BaseModel):
     name: str
     price: float
 
-class Transaction(BaseModel):
-    user_id: int
-    items: List[dict]
+class TransactionItem(BaseModel):
+    product_id: int
+    product_name: str
 
-class TransactionOut(BaseModel):
+class TransactionIn(BaseModel):
+    user_id: int
+    items: List[TransactionItem]
+
+class TransactionFull(BaseModel):
     id: int
     user_id: int
+    username: str
     product_id: int
-    timestamp: str
+    product_name: str
+    timestamp: datetime
     class Config:
         orm_mode = True
 

@@ -21,12 +21,12 @@ models.Base.metadata.create_all(bind=engine)
 def read_root():
     return {"message": "Kantinen-Backend läuft"}
 
-@app.get("/products", response_model=list[schemas.Product])
+@app.get("/products", response_model=list[schemas.ProductOut])
 def get_products():
     db = SessionLocal()
     return db.query(models.Product).all()
 
-@app.post("/products", response_model=schemas.Product)
+@app.post("/products", response_model=schemas.ProductCreate)
 def create_product(prod: schemas.ProductCreate):
     db = SessionLocal()
     db_item = models.Product(**prod.dict())
@@ -35,17 +35,29 @@ def create_product(prod: schemas.ProductCreate):
     db.refresh(db_item)
     return db_item
 
-@app.get("/transactions", response_model=list[schemas.TransactionOut])
+@app.get("/transactions", response_model=list[schemas.TransactionFull])
 def get_transactions():
     db = SessionLocal()
-    return db.query(models.Transaction).all()
-
+    transactions = db.query(models.Transaction).all()
+    results = []
+    for t in transactions:
+        product = db.query(models.Product).filter(models.Product.id == t.product_id).first()
+        user = db.query(models.User).filter(models.User.id == t.user_id).first()
+        results.append({
+            "id": t.id,
+            "timestamp": t.timestamp,
+            "user_id": t.user_id,
+            "username": user.username if user else "Unbekannt",
+            "product_id": t.product_id,
+            "product_name": product.name if product else "Unbekannt"
+        })
+    return results
 @app.post("/transaction")
-def record_transaction(trans: schemas.Transaction):
+def record_transaction(trans: schemas.TransactionIn):
     db = SessionLocal()
     for item in trans.items:
-        db_item = models.Transaction(user_id=trans.user_id, product_id=item["product_id"])
-        db.add(db_item)
+        db_item = models.Transaction(user_id=trans.user_id, product_id=item.product_id)
+    db.add(db_item)
     db.commit()
     return {"message": "Transaktion gespeichert"}
 
