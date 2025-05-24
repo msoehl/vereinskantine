@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from database import get_db
 from database import SessionLocal, engine
 import models, schemas
 
@@ -7,9 +8,12 @@ from sqlalchemy.orm import Session
 
 app = FastAPI()
 
+origins = [
+    "http://localhost:3000"
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -82,3 +86,24 @@ def login(user: schemas.UserCreate):
     if db_user and db_user.password == user.password:
         return {"status": "ok"}
     raise HTTPException(status_code=401, detail="Login fehlgeschlagen")
+
+@app.delete("/products/{product_id}")
+def delete_product(product_id: int, db: Session = Depends(get_db)):
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if product:
+        db.delete(product)
+        db.commit()
+        return {"message": "Produkt gelöscht"}
+    else:
+        raise HTTPException(status_code=404, detail="Produkt nicht gefunden")
+
+
+@app.delete("/users/{user_id}")
+def delete_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if user:
+        db.delete(user)
+        db.commit()
+        return {"message": "Benutzer gelöscht"}
+    else:
+        raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")

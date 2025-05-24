@@ -6,12 +6,14 @@ class ProductOut(BaseModel):
     id: int
     name: str
     price: float
+    category: str
     class Config:
         orm_mode = True
 
 class ProductCreate(BaseModel):
     name: str
     price: float
+    category: str
 
 class TransactionItem(BaseModel):
     product_id: int

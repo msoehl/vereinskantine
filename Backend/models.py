@@ -9,7 +9,8 @@ class Product(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True)
     price = Column(Float)
-
+    category = Column(String, nullable=True)
+    
 class Transaction(Base):
     __tablename__ = "transactions"
     id = Column(Integer, primary_key=True, index=True)
