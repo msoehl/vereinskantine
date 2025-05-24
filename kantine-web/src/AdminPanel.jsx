@@ -17,6 +17,9 @@ function Login({ setLoggedIn }) {
   };
 
   return (
+
+
+    
     <div className="login-container">
     <div className="grid gap-4 p-4">
       <h1 className="text-2xl font-bold">Login</h1>
@@ -28,6 +31,27 @@ function Login({ setLoggedIn }) {
   );
 }
 
+function UtcClock() {
+  const [utcTime, setUtcTime] = useState(() => formatUtc(new Date()));
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setUtcTime(formatUtc(new Date()));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  function formatUtc(date) {
+    const iso = date.toISOString(); // z. B. 2025-05-24T13:45:27.123Z
+    return iso.split(".")[0].replace("T", " "); // → 2025-05-24 13:45:27
+  }
+
+  return (
+    <div style={{ fontSize: "14px", fontWeight: "bold", textAlign: "center", marginBottom: "10px" }}>
+      Aktuelle UTC-Zeit: {utcTime}
+    </div>
+  );
+}
 export default function AdminPanel() {
   const [loggedIn, setLoggedIn] = useState(() => localStorage.getItem("loggedIn") === "true");
   const [view, setView] = useState("products");
@@ -109,12 +133,10 @@ const fetchUsers = async () => {
     
     <div className="grid gap-4 p-4">
       <div className="nav-bar">
-      <div className="flex gap-4">
         <button onClick={() => setView("products")}>Produkte</button>
         <button onClick={() => setView("transactions")}>Transaktionen</button>
         <button onClick={() => setView("users")}>Benutzer</button>
         <button onClick={() => {localStorage.removeItem("loggedIn");setLoggedIn(false);}}>Logout</button>
-      </div>
       </div>
 
       {view === "products" && (
@@ -164,6 +186,9 @@ const fetchUsers = async () => {
 
       {view === "transactions" && (
         <>
+          <div className="grid gap-4 p-4">
+            <UtcClock /> 
+          </div>
           <div className="section">
             <h1 className="text-2xl font-bold">Transaktionen</h1>
             <div className="p-4">
@@ -183,7 +208,7 @@ const fetchUsers = async () => {
                       <td>{t.product_id}</td>
                       <td>{t.product_name}</td>
                       <td>{new Date(t.timestamp).toLocaleString()}</td>
-                    </tr>
+                     </tr>
                   ))}
                 </tbody>
               </table>
