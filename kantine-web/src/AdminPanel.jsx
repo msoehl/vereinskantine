@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 
+import { useEffect, useState } from "react";
 
 function Login({ setLoggedIn }) {
   const [username, setUsername] = useState("");
@@ -7,8 +7,7 @@ function Login({ setLoggedIn }) {
 
   const handleLogin = () => {
     if ((username === "admin" && password === "admin") ||
-        (username === localStorage.getItem("username") && password === localStorage.getItem("user_password"))) 
-        {
+        (username === localStorage.getItem("username") && password === localStorage.getItem("user_password"))) {
       localStorage.setItem("loggedIn", "true");
       setLoggedIn(true);
     } else {
@@ -17,16 +16,13 @@ function Login({ setLoggedIn }) {
   };
 
   return (
-
-
-    
     <div className="login-container">
-    <div className="grid gap-4 p-4">
-      <h1 className="text-2xl font-bold">Login</h1>
-      <input className="p-2 border rounded" placeholder="Benutzername" value={username} onChange={e => setUsername(e.target.value)} />
-      <input className="p-2 border rounded" placeholder="Passwort" type="password" value={password} onChange={e => setPassword(e.target.value)} />
-      <button onClick={handleLogin}>Login</button>
-    </div>
+      <div className="grid gap-4 p-4">
+        <h1 className="text-2xl font-bold">Login</h1>
+        <input className="p-2 border rounded" placeholder="Benutzername" value={username} onChange={e => setUsername(e.target.value)} />
+        <input className="p-2 border rounded" placeholder="Passwort" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+        <button onClick={handleLogin}>Login</button>
+      </div>
     </div>
   );
 }
@@ -42,8 +38,8 @@ function UtcClock() {
   }, []);
 
   function formatUtc(date) {
-    const iso = date.toISOString(); // z. B. 2025-05-24T13:45:27.123Z
-    return iso.split(".")[0].replace("T", " "); // → 2025-05-24 13:45:27
+    const iso = date.toISOString();
+    return iso.split(".")[0].replace("T", " ");
   }
 
   return (
@@ -52,6 +48,7 @@ function UtcClock() {
     </div>
   );
 }
+
 export default function AdminPanel() {
   const [loggedIn, setLoggedIn] = useState(() => localStorage.getItem("loggedIn") === "true");
   const [view, setView] = useState("products");
@@ -64,6 +61,42 @@ export default function AdminPanel() {
   const [username, setUsername] = useState("");
   const [rfid, setRfid] = useState("");
   const [userPassword, setUserPassword] = useState("");
+const importUsers = async () => {
+    const res = await fetch("http://localhost:8000/import-users", { method: "POST" });
+    if (res.ok) {
+      const result = await res.json();
+      alert(`${result.imported.length} Benutzer importiert.`);
+      fetchUsers();
+    } else {
+      alert("Fehler beim Import.");
+    }
+  };
+
+  const exportTransactions = () => {
+    if (!Array.isArray(transactions)) return;
+
+    const header = ["Transaktion-ID", "Benutzer-ID", "Summe", "Datum", "Produkte"];
+    const rows = transactions.map(t => [
+      t.id,
+      t.user_id,
+      t.total.toFixed(2) + " €",
+      new Date(t.timestamp).toLocaleString(),
+      t.items.map(i => `${i.product_name} (€${i.price.toFixed(2)})`).join(" / ")
+    ]);
+
+    const csvContent = [header, ...rows]
+      .map(e => e.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(";"))
+      .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "transaktionen.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const fetchProducts = async () => {
     const res = await fetch("http://localhost:8000/products");
@@ -78,16 +111,16 @@ export default function AdminPanel() {
   };
 
   const deleteProduct = async (id) => {
-  await fetch(`http://localhost:8000/products/${id}`, { method: "DELETE" });
-  fetchProducts();
-};
+    await fetch(`http://localhost:8000/products/${id}`, { method: "DELETE" });
+    fetchProducts();
+  };
 
-const deleteUser = async (id) => {
-  await fetch(`http://localhost:8000/users/${id}`, { method: "DELETE" });
-  fetchUsers();
-};
+  const deleteUser = async (id) => {
+    await fetch(`http://localhost:8000/users/${id}`, { method: "DELETE" });
+    fetchUsers();
+  };
 
-const fetchUsers = async () => {
+  const fetchUsers = async () => {
     const res = await fetch("http://localhost:8000/users");
     const data = await res.json();
     setUsers(data);
@@ -130,13 +163,12 @@ const fetchUsers = async () => {
   if (!loggedIn) return <Login setLoggedIn={setLoggedIn} />;
 
   return (
-    
     <div className="grid gap-4 p-4">
       <div className="nav-bar">
         <button onClick={() => setView("products")}>Produkte</button>
         <button onClick={() => setView("transactions")}>Transaktionen</button>
         <button onClick={() => setView("users")}>Benutzer</button>
-        <button onClick={() => {localStorage.removeItem("loggedIn");setLoggedIn(false);}}>Logout</button>
+        <button onClick={() => { localStorage.removeItem("loggedIn"); setLoggedIn(false); }}>Logout</button>
       </div>
 
       {view === "products" && (
@@ -175,7 +207,8 @@ const fetchUsers = async () => {
                       <td>{prod.name}</td>
                       <td>{prod.price.toFixed(2)} €</td>
                       <td>{prod.category}</td>
-                      <td><button onClick={() => deleteProduct(prod.id)}>Löschen</button></td></tr>
+                      <td><button onClick={() => deleteProduct(prod.id)}>Löschen</button></td>
+                    </tr>
                   ))}
                 </tbody>
               </table>
@@ -187,28 +220,33 @@ const fetchUsers = async () => {
       {view === "transactions" && (
         <>
           <div className="grid gap-4 p-4">
-            <UtcClock /> 
+            <UtcClock />
           </div>
           <div className="section">
-            <h1 className="text-2xl font-bold">Transaktionen</h1>
+            <div className="flex justify-between items-center">
+              <h1 className="text-2xl font-bold">Transaktionen</h1>
+              <button onClick={exportTransactions}>CSV exportieren</button>
+            </div>
             <div className="p-4">
               <table>
                 <thead>
                   <tr>
-                    <th>Benutzer</th>
-                    <th>Product-ID</th>
-                    <th>Produkt</th>
-                    <th>Zeit</th>
+                    <th>Transaktion-ID</th>
+                    <th>Benutzer-ID</th>
+                    <th>Produkte</th>
+                    <th>Summe</th>
+                    <th>Zeitpunkt</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {transactions.map(t => (
+                  {Array.isArray(transactions) && transactions.map(t => (
                     <tr key={t.id}>
-                      <td>{t.username}</td>
-                      <td>{t.product_id}</td>
-                      <td>{t.product_name}</td>
+                      <td>{t.id}</td>
+                      <td>{t.user_id}</td>
+                      <td>{t.items.map(i => `${i.product_name} (€${i.price.toFixed(2)})`).join(", ")}</td>
+                      <td>{t.total.toFixed(2)} €</td>
                       <td>{new Date(t.timestamp).toLocaleString()}</td>
-                     </tr>
+                    </tr>
                   ))}
                 </tbody>
               </table>
@@ -220,7 +258,7 @@ const fetchUsers = async () => {
       {view === "users" && (
         <>
           <div className="section">
-            <h1 className="text-2xl font-bold">Benutzerverwaltung</h1>
+            <h1 className="text-2xl font-bold">Benutzerverwaltung</h1><button onClick={importUsers}>Mitglieder importieren</button>
             <div className="p-4 grid grid-cols-4 gap-2">
               <input placeholder="Benutzername" value={username} onChange={e => setUsername(e.target.value)} />
               <input placeholder="RFID" value={rfid} onChange={e => setRfid(e.target.value)} />
@@ -246,7 +284,8 @@ const fetchUsers = async () => {
                       <td>{u.id}</td>
                       <td>{u.username}</td>
                       <td>{u.rfid}</td>
-                      <td><button onClick={() => deleteUser(u.id)}>Löschen</button></td></tr>
+                      <td><button onClick={() => deleteUser(u.id)}>Löschen</button></td>
+                    </tr>
                   ))}
                 </tbody>
               </table>

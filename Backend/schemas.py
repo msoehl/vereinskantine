@@ -8,7 +8,7 @@ class ProductOut(BaseModel):
     price: float
     category: str
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ProductCreate(BaseModel):
     name: str
@@ -18,11 +18,13 @@ class ProductCreate(BaseModel):
 class TransactionItem(BaseModel):
     product_id: int
     product_name: str
+    price: float
 
 class TransactionIn(BaseModel):
     user_id: int
+    total: float
     items: List[TransactionItem]
-
+    
 class TransactionFull(BaseModel):
     id: int
     user_id: int
@@ -31,7 +33,7 @@ class TransactionFull(BaseModel):
     product_name: str
     timestamp: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class UserCreate(BaseModel):
     username: str
@@ -43,4 +45,4 @@ class UserOut(BaseModel):
     username: str
     rfid: str
     class Config:
-        orm_mode = True
+        from_attributes = True
