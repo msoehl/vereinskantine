@@ -4,3 +4,4 @@ sqlalchemy
 pydantic>=2.0
 python-dotenv
 requests
+kivy
