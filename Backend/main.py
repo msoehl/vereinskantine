@@ -125,12 +125,13 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     else:
         raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
 
-#@app.post("/import-users")
+@app.post("/import-users")
 def import_users_from_vereinsflieger(db: Session = Depends(get_db)):
     base_url = "https://www.vereinsflieger.de/interface/rest"
     username = os.getenv("VFL_USERNAME")
     password = os.getenv("VFL_PASSWORD")
     appkey = os.getenv("VFL_APPKEY")
+    cid = os.getenv("VFL_CID")
 
     token_response = requests.get(f"{base_url}/auth/accesstoken")
     accesstoken = token_response.text.strip()
@@ -139,7 +140,8 @@ def import_users_from_vereinsflieger(db: Session = Depends(get_db)):
         "accesstoken": accesstoken,
         "username": username,
         "password": hashlib.md5(password.encode()).hexdigest(),
-        "appkey": appkey
+        "appkey": appkey,
+        "cid": cid
     }
 
     signin = requests.post(f"{base_url}/auth/signin", data=login_payload)
