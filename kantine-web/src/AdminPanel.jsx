@@ -258,7 +258,7 @@ const importUsers = async () => {
       {view === "users" && (
         <>
           <div className="section">
-            <h1 className="text-2xl font-bold">Benutzerverwaltung</h1><button onClick={importUsers}>Mitglieder importieren</button>
+            <h1 className="text-2xl font-bold">Benutzerverwaltung</h1><button onClick={importUsers}>Mitglieder importieren (Vereinsflieger)</button>
             <div className="p-4 grid grid-cols-4 gap-2">
               <input placeholder="Benutzername" value={username} onChange={e => setUsername(e.target.value)} />
               <input placeholder="RFID" value={rfid} onChange={e => setRfid(e.target.value)} />
