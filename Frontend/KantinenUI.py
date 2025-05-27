@@ -76,7 +76,7 @@ class KantinenUI(App):
             color=(1, 1, 1, 1),
             font_size='16sp'
         )
-        change_user_btn.bind(on_press=lambda instance: self.select_user_popup())
+        change_user_btn.bind(on_press=lambda instance: self.show_rfid_popup())
         right_area.add_widget(change_user_btn)
 
         self.summary = Label(
@@ -114,13 +114,15 @@ class KantinenUI(App):
             response = requests.get("http://localhost:8000/users")
             if response.status_code == 200:
                 self.users = response.json()
-                self.show_rfid_popup()
+                if self.user_id is None:
+                    self.show_rfid_popup()
             else:
                 self.users = []
                 print("Fehler beim Laden der Nutzer:", response.text)
         except Exception as e:
             self.users = []
             print("Fehler beim Abrufen der Nutzer:", e)
+
 
     def select_user_popup(self):
             from kivy.uix.popup import Popup
@@ -144,9 +146,11 @@ class KantinenUI(App):
                     self.user_id = selected["id"]
                     self.user_name = selected["username"]
                     self.items = []
+                    self.item_counts = {} 
                     self.total = 0.0
                     self.header.text = f"Willkommen, {self.user_name}!"
                     self.update_summary()
+                    self.load_products()
                     popup.dismiss()
 
             ok_button.bind(on_press=set_user)
@@ -159,7 +163,10 @@ class KantinenUI(App):
         from kivy.uix.button import Button
         from kivy.uix.boxlayout import BoxLayout
         from kivy.core.window import Window
-
+        
+        if hasattr(self, 'rfid_popup') and self.rfid_popup and self.rfid_popup._window:
+            return
+        
         self.rfid_buffer = ""
         layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
         self.rfid_status = Label(text="Bitte RFID scannen...", font_size='20sp')
@@ -187,15 +194,17 @@ class KantinenUI(App):
                 self.user_id = matched["id"]
                 self.user_name = matched["username"]
                 self.items = []
+                self.item_counts = {} 
                 self.total = 0.0
                 self.header.text = f"Willkommen, {self.user_name}!"
                 self.update_summary()
+                self.load_products()
                 self.rfid_status.text = f"Eingeloggt: {self.user_name}"
                 self.rfid_popup.dismiss()
                 from kivy.core.window import Window
                 Window.unbind(on_key_down=self.handle_rfid_key)
             else:
-                self.rfid_status.text = "Unbekanntes RFID – erneut versuchen"
+                self.rfid_status.text = "Unbekannter RFID – erneut versuchen"
         elif codepoint:
             self.rfid_buffer += codepoint
 
@@ -207,10 +216,12 @@ class KantinenUI(App):
 
     def perform_auto_logout(self, *args):
         self.items = []
+        self.item_counts = {} 
         self.total = 0.0
         self.user_id = None
         self.user_name = None
         self.update_summary()
+        self.load_products()
         self.header.text = "Automatischer Logout wegen Inaktivität"
         self.show_rfid_popup()
 
@@ -306,16 +317,21 @@ class KantinenUI(App):
             print("Netzwerkfehler:", e)
 
         self.items = []
+        self.item_counts = {} 
         self.total = 0.0
         self.update_summary()
+        self.load_products()
         self.user_id = None
         self.user_name = None
         self.select_user_popup()
+        
 
     def cancel_transaction(self, instance):
         self.items = []
+        self.item_counts = {} 
         self.total = 0.0
         self.update_summary()
+        self.load_products()
 
     def update_summary(self):
         text = f"Benutzer: {self.user_name or '–'}\n\nEinkauf:\n"
