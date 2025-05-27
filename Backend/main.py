@@ -15,7 +15,7 @@ load_dotenv()
 
 app = FastAPI()
 
-#app.mount("/", StaticFiles(directory="Frontend", html=True), name="static")
+app.mount("/", StaticFiles(directory="Frontend", html=True), name="static")
 
 origins = [
     "http://localhost:3000"
