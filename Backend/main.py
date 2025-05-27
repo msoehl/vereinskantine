@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from database import get_db, engine
 import models, schemas
@@ -14,8 +15,7 @@ load_dotenv()
 
 app = FastAPI()
 
-
-app = FastAPI()
+app.mount("/", StaticFiles(directory="frontend", html=True), name="static")
 
 origins = [
     "http://localhost:3000"
