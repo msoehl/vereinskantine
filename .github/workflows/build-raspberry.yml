@@ -10,7 +10,7 @@ jobs:
         run: echo "Hello Raspberry Pi!" > hello.txt
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2
         with:
           name: hello-file
           path: hello.txt
