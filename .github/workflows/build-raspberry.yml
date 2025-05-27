@@ -1,56 +1,16 @@
-name: Build Raspberry Pi Package
+name: Test Upload Artifact
 
-on:
-  push:
-    branches: [dev]
+on: [push]
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-22.04
-
     steps:
-      - name: 📦 Code auschecken
-        uses: actions/checkout@v3
+      - name: Create file
+        run: echo "Hello Raspberry Pi!" > hello.txt
 
-      - name: 🐍 Python einrichten
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: 🟦 Node.js einrichten
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      - name: 🔧 Python-Abhängigkeiten installieren
-        run: |
-          python -m venv .venv
-          source .venv/bin/activate
-          pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: 🌐 Web-Frontend bauen
-        working-directory: kantine-web
-        run: |
-          npm ci
-          npm run build
-
-      - name: 📁 Deployment-Paket vorbereiten
-        run: |
-          mkdir -p output/frontend
-          mkdir -p output/backend
-          mkdir -p output/gui
-
-          cp -r kantine-web/dist/* output/frontend/
-          cp -r Backend/* output/backend/
-          cp -r Frontend/KantinenUI.py output/gui/
-          cp requirements.txt output/
-          cp start.sh output/
-
-          tar -czf raspberry-package.tar.gz -C output .
-
-      - name: ⬆️ Build-Artefakt hochladen
+      - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-          name: raspberry-package
-          path: raspberry-package.tar.gz
+          name: hello-file
+          path: hello.txt
