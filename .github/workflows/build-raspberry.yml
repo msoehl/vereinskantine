@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: 📦 Code auschecken
@@ -50,7 +50,7 @@ jobs:
           tar -czf raspberry-package.tar.gz -C output .
 
       - name: ⬆️ Build-Artefakt hochladen
-        uses: actions/upload-artifact@v3.1.3
+        uses: actions/upload-artifact@v3
         with:
           name: raspberry-package
           path: raspberry-package.tar.gz
