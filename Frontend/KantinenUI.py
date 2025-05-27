@@ -23,6 +23,7 @@ class KantinenUI(App):
         self.user_id = None
         self.user_name = None
         Clock.schedule_once(lambda dt: self.load_users(), 0.1)
+        Clock.schedule_interval(lambda dt: self.load_users(), 150)
 
         self.products_by_category = {
             "Getränke": {},
@@ -99,15 +100,19 @@ class KantinenUI(App):
 
         self.load_products_from_backend()
         Clock.schedule_interval(lambda dt: self.load_products_from_backend(), 120)
+        self.register_activity_listeners()
+        self.reset_inactivity_timer()
+
 
         return self.root
 
+    
     def load_users(self):
         try:
             response = requests.get("http://localhost:8000/users")
             if response.status_code == 200:
                 self.users = response.json()
-                self.select_user_popup()
+                self.show_rfid_popup()
             else:
                 self.users = []
                 print("Fehler beim Laden der Nutzer:", response.text)
@@ -116,34 +121,101 @@ class KantinenUI(App):
             print("Fehler beim Abrufen der Nutzer:", e)
 
     def select_user_popup(self):
+            from kivy.uix.popup import Popup
+            from kivy.uix.spinner import Spinner
+            from kivy.uix.boxlayout import BoxLayout
+
+            layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
+            usernames = [user["username"] for user in self.users]
+            user_dict = {user["username"]: user for user in self.users}
+            spinner = Spinner(text=usernames[0] if usernames else "Keine Benutzer verfügbar", values=usernames, size_hint=(1, None), height=44, font_size='18sp')
+            ok_button = Button(text="OK", size_hint=(1, None), height=44)
+            layout.add_widget(spinner)
+            layout.add_widget(ok_button)
+
+            popup = Popup(title='Benutzer auswählen', content=layout, size_hint=(None, None), size=(500, 250), auto_dismiss=False)
+
+            def set_user(instance):
+                name = spinner.text
+                selected = user_dict.get(name)
+                if selected:
+                    self.user_id = selected["id"]
+                    self.user_name = selected["username"]
+                    self.items = []
+                    self.total = 0.0
+                    self.header.text = f"Willkommen, {self.user_name}!"
+                    self.update_summary()
+                    popup.dismiss()
+
+            ok_button.bind(on_press=set_user)
+            popup.open()
+   
+    def show_rfid_popup(self):
+        
         from kivy.uix.popup import Popup
-        from kivy.uix.spinner import Spinner
+        from kivy.uix.label import Label
+        from kivy.uix.button import Button
         from kivy.uix.boxlayout import BoxLayout
+        from kivy.core.window import Window
 
+        self.rfid_buffer = ""
         layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
-        usernames = [user["username"] for user in self.users]
-        user_dict = {user["username"]: user for user in self.users}
-        spinner = Spinner(text=usernames[0] if usernames else "Keine Benutzer verfügbar", values=usernames, size_hint=(1, None), height=44, font_size='18sp')
-        ok_button = Button(text="OK", size_hint=(1, None), height=44)
-        layout.add_widget(spinner)
-        layout.add_widget(ok_button)
+        self.rfid_status = Label(text="Bitte RFID scannen...", font_size='20sp')
+        manual_button = Button(text="Manuell einloggen", size_hint=(1, None), height=44)
 
-        popup = Popup(title='Benutzer auswählen', content=layout, size_hint=(None, None), size=(500, 250), auto_dismiss=False)
+        layout.add_widget(self.rfid_status)
+        layout.add_widget(manual_button)
 
-        def set_user(instance):
-            name = spinner.text
-            selected = user_dict.get(name)
-            if selected:
-                self.user_id = selected["id"]
-                self.user_name = selected["username"]
+        self.rfid_popup = Popup(title='RFID Login', content=layout, size_hint=(None, None), size=(400, 200), auto_dismiss=False)
+
+        def manual_login(instance):
+            self.rfid_popup.dismiss()
+            self.select_user_popup()
+
+        manual_button.bind(on_press=manual_login)
+        self.rfid_popup.open()
+        Window.bind(on_key_down=self.handle_rfid_key)
+
+    def handle_rfid_key(self, window, key, scancode, codepoint, modifiers):
+        if key == 13:  # Enter
+            rfid = self.rfid_buffer.strip()
+            self.rfid_buffer = ""
+            matched = next((u for u in self.users if u.get("rfid") == rfid), None)
+            if matched:
+                self.user_id = matched["id"]
+                self.user_name = matched["username"]
                 self.items = []
                 self.total = 0.0
                 self.header.text = f"Willkommen, {self.user_name}!"
                 self.update_summary()
-                popup.dismiss()
+                self.rfid_status.text = f"Eingeloggt: {self.user_name}"
+                self.rfid_popup.dismiss()
+                from kivy.core.window import Window
+                Window.unbind(on_key_down=self.handle_rfid_key)
+            else:
+                self.rfid_status.text = "Unbekanntes RFID – erneut versuchen"
+        elif codepoint:
+            self.rfid_buffer += codepoint
 
-        ok_button.bind(on_press=set_user)
-        popup.open()
+    def reset_inactivity_timer(self, *args):
+        from kivy.clock import Clock
+        if hasattr(self, 'inactivity_event') and self.inactivity_event:
+            self.inactivity_event.cancel()
+        self.inactivity_event = Clock.schedule_once(self.perform_auto_logout, 180)
+
+    def perform_auto_logout(self, *args):
+        self.items = []
+        self.total = 0.0
+        self.user_id = None
+        self.user_name = None
+        self.update_summary()
+        self.header.text = "Automatischer Logout wegen Inaktivität"
+        self.show_rfid_popup()
+
+    def register_activity_listeners(self):
+        from kivy.core.window import Window
+        Window.bind(on_touch_down=lambda *x: self.reset_inactivity_timer())
+        Window.bind(on_key_down=lambda *x: self.reset_inactivity_timer())
 
     def load_products_from_backend(self, *args):
         try:

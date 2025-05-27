@@ -1,17 +1,34 @@
-
 import { useEffect, useState } from "react";
 
 function Login({ setLoggedIn }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!localStorage.getItem("admin_password")) {
+      localStorage.setItem("admin_password", "admin");
+    }
+  }, []);
 
   const handleLogin = () => {
-    if ((username === "admin" && password === "admin") ||
-        (username === localStorage.getItem("username") && password === localStorage.getItem("user_password"))) {
+    const adminPassword = localStorage.getItem("admin_password");
+
+    if (
+      (username === "admin" && password === adminPassword) ||
+      (username === localStorage.getItem("username") && password === localStorage.getItem("user_password"))
+    ) {
       localStorage.setItem("loggedIn", "true");
+      localStorage.setItem("currentUser", username);
       setLoggedIn(true);
     } else {
-      alert("Falsche Zugangsdaten");
+      setError("Falscher Benutzername oder Passwort.");
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      handleLogin();
     }
   };
 
@@ -19,9 +36,23 @@ function Login({ setLoggedIn }) {
     <div className="login-container">
       <div className="grid gap-4 p-4">
         <h1 className="text-2xl font-bold">Login</h1>
-        <input className="p-2 border rounded" placeholder="Benutzername" value={username} onChange={e => setUsername(e.target.value)} />
-        <input className="p-2 border rounded" placeholder="Passwort" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+        <input
+          className="p-2 border rounded"
+          placeholder="Benutzername"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          onKeyDown={handleKeyDown}
+        />
+        <input
+          className="p-2 border rounded"
+          placeholder="Passwort"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={handleKeyDown}
+        />
         <button onClick={handleLogin}>Login</button>
+        {error && <div className="text-red-500 font-semibold">{error}</div>}
       </div>
     </div>
   );
@@ -61,7 +92,11 @@ export default function AdminPanel() {
   const [username, setUsername] = useState("");
   const [rfid, setRfid] = useState("");
   const [userPassword, setUserPassword] = useState("");
-const importUsers = async () => {
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  const importUsers = async () => {
     const res = await fetch("http://localhost:8000/import-users", { method: "POST" });
     if (res.ok) {
       const result = await res.json();
@@ -74,7 +109,6 @@ const importUsers = async () => {
 
   const exportTransactions = () => {
     if (!Array.isArray(transactions)) return;
-
     const header = ["Transaktion-ID", "Benutzer-ID", "Summe", "Datum", "Produkte"];
     const rows = transactions.map(t => [
       t.id,
@@ -83,11 +117,7 @@ const importUsers = async () => {
       new Date(t.timestamp).toLocaleString(),
       t.items.map(i => `${i.product_name} (€${i.price.toFixed(2)})`).join(" / ")
     ]);
-
-    const csvContent = [header, ...rows]
-      .map(e => e.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(";"))
-      .join("\n");
-
+    const csvContent = [header, ...rows].map(e => e.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(";")).join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -152,6 +182,30 @@ const importUsers = async () => {
     fetchUsers();
   };
 
+  const changePassword = () => {
+    const currentUser = localStorage.getItem("currentUser");
+    if (!userPassword || !confirmPassword) {
+      setPasswordMessage("Bitte beide Felder ausfüllen.");
+      setPasswordSuccess(false);
+      return;
+    }
+    if (userPassword !== confirmPassword) {
+      setPasswordMessage("Passwörter stimmen nicht überein.");
+      setPasswordSuccess(false);
+      return;
+    }
+    if (currentUser === "admin") {
+      localStorage.setItem("admin_password", userPassword);
+      setPasswordMessage("Admin-Passwort erfolgreich geändert.");
+    } else {
+      localStorage.setItem("user_password", userPassword);
+      setPasswordMessage("Passwort erfolgreich geändert.");
+    }
+    setPasswordSuccess(true);
+    setUserPassword("");
+    setConfirmPassword("");
+  };
+
   useEffect(() => {
     if (loggedIn) {
       fetchProducts();
@@ -168,8 +222,21 @@ const importUsers = async () => {
         <button onClick={() => setView("products")}>Produkte</button>
         <button onClick={() => setView("transactions")}>Transaktionen</button>
         <button onClick={() => setView("users")}>Benutzer</button>
-        <button onClick={() => { localStorage.removeItem("loggedIn"); setLoggedIn(false); }}>Logout</button>
+        <button onClick={() => setView("settings")}>Einstellungen</button>
+        <button onClick={() => { localStorage.removeItem("loggedIn"); localStorage.removeItem("currentUser"); setLoggedIn(false); }}>Logout</button>
       </div>
+
+      {view === "settings" && (
+        <div className="section">
+          <h1 className="text-2xl font-bold mb-4">Einstellungen</h1>
+          <div className="grid gap-2 max-w-md">
+            <input type="password" placeholder="Neues Passwort" className="p-2 border rounded" value={userPassword} onChange={(e) => setUserPassword(e.target.value)} />
+            <input type="password" placeholder="Passwort bestätigen" className="p-2 border rounded" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+            <button onClick={changePassword}>Passwort ändern</button>
+            {passwordMessage && <div className={`mt-2 ${passwordSuccess ? "text-green-600" : "text-red-500"}`}>{passwordMessage}</div>}
+          </div>
+        </div>
+      )}
 
       {view === "products" && (
         <>

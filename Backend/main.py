@@ -15,7 +15,7 @@ load_dotenv()
 
 app = FastAPI()
 
-app.mount("/", StaticFiles(directory="frontend", html=True), name="static")
+#app.mount("/", StaticFiles(directory="Frontend", html=True), name="static")
 
 origins = [
     "http://localhost:3000"
@@ -133,22 +133,19 @@ def import_users_from_vereinsflieger(db: Session = Depends(get_db)):
     appkey = os.getenv("VFL_APPKEY")
     cid = os.getenv("VFL_CID")
 
-    # 🛑 Schritt 1: Prüfe, ob Umgebungsvariablen fehlen
     if not all([username, password, appkey, cid]):
-        print("❌ FEHLER: Eine oder mehrere .env-Werte fehlen.")
+        print("FEHLER: Eine oder mehrere .env-Werte fehlen.")
         print("VFL_USERNAME:", username)
         print("VFL_PASSWORD:", "gesetzt" if password else "FEHLT")
         print("VFL_APPKEY:", appkey)
         print("VFL_CID:", cid)
         raise RuntimeError("Fehlende .env-Werte")
 
-    # ✅ Schritt 2: Token holen
     token_response = requests.get(f"{base_url}/auth/accesstoken")
     accesstoken = token_response.text.strip()
 
-    print("🔑 AccessToken:", accesstoken)
+    print("AccessToken:", accesstoken)
 
-    # ✅ Schritt 3: Login-Request vorbereiten
     login_payload = {
         "accesstoken": accesstoken,
         "username": username,
@@ -157,16 +154,13 @@ def import_users_from_vereinsflieger(db: Session = Depends(get_db)):
         "cid": cid
     }
 
-    # 🛠️ Debug: Login-Payload (ohne Passwort anzeigen)
     print("📦 Login Payload (ohne Passwort):", {k: v for k, v in login_payload.items() if k != "password"})
 
-    # ✅ Schritt 4: Login ausführen
     signin = requests.post(f"{base_url}/auth/signin", data=login_payload)
 
     print("📡 Signin Status:", signin.status_code)
     print("📨 Signin Response:", signin.text)
 
-    # ❌ Schritt 5: Fehlerbehandlung
     if signin.status_code != 200:
         raise HTTPException(status_code=401, detail="Anmeldung fehlgeschlagen")
 
