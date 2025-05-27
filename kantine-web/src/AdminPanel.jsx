@@ -97,7 +97,7 @@ export default function AdminPanel() {
   const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   const importUsers = async () => {
-    const res = await fetch("http://localhost:8000/import-users", { method: "POST" });
+    const res = await fetch("/import-users", { method: "POST" });
     if (res.ok) {
       const result = await res.json();
       alert(`${result.imported.length} Benutzer importiert.`);
@@ -129,35 +129,35 @@ export default function AdminPanel() {
   };
 
   const fetchProducts = async () => {
-    const res = await fetch("http://localhost:8000/products");
+    const res = await fetch("/products");
     const data = await res.json();
     setProducts(data);
   };
 
   const fetchTransactions = async () => {
-    const res = await fetch("http://localhost:8000/transactions");
+    const res = await fetch("/transactions");
     const data = await res.json();
     setTransactions(data);
   };
 
   const deleteProduct = async (id) => {
-    await fetch(`http://localhost:8000/products/${id}`, { method: "DELETE" });
+    await fetch(`/products/${id}`, { method: "DELETE" });
     fetchProducts();
   };
 
   const deleteUser = async (id) => {
-    await fetch(`http://localhost:8000/users/${id}`, { method: "DELETE" });
+    await fetch(`/users/${id}`, { method: "DELETE" });
     fetchUsers();
   };
 
   const fetchUsers = async () => {
-    const res = await fetch("http://localhost:8000/users");
+    const res = await fetch("/users");
     const data = await res.json();
     setUsers(data);
   };
 
   const addProduct = async () => {
-    await fetch("http://localhost:8000/products", {
+    await fetch("/products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, price: parseFloat(price), category })
@@ -169,7 +169,7 @@ export default function AdminPanel() {
   };
 
   const addUser = async () => {
-    await fetch("http://localhost:8000/users", {
+    await fetch("/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, rfid, password: userPassword })
