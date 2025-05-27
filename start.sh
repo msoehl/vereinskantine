@@ -15,11 +15,12 @@ pip install -r requirements.txt
 
 # Backend starten
 echo "🚀 Starte Backend..."
-uvicorn main:app --host 0.0.0.0 --port 8000 --app-dir backend
+nohup uvicorn main:app --host 0.0.0.0 --port 8000 --app-dir backend > backend.log 2>&1 &
+
 # Warten, bis Backend erreichbar ist
 echo "⏳ Warte auf Backend..."
 for i in {1..30}; do
-  if curl -s http://localhost:8000/products > /dev/null; then
+  if curl -s http://localhost:8000/docs > /dev/null; then
     echo "✅ Backend ist bereit."
     break
   fi

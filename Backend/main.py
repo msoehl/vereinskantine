@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from database import get_db, engine
 import models, schemas
@@ -15,7 +16,21 @@ load_dotenv()
 
 app = FastAPI()
 
-app.mount("/", StaticFiles(directory="Frontend", html=True), name="static")
+# Webverzeichnis (gebautes Frontend)
+web_path = "frontend"
+
+# Assets mounten (CSS, JS, Bilder)
+app.mount("/assets", StaticFiles(directory=os.path.join(web_path, "assets")), name="assets")
+
+# index.html für /
+@app.get("/")
+async def serve_index():
+    return FileResponse(os.path.join(web_path, "index.html"))
+
+# Optionaler Backend-Status-Endpunkt
+@app.get("/status")
+def read_status():
+    return {"message": "Kantinen-Backend läuft"}
 
 origins = [
     "http://localhost:3000"
@@ -29,10 +44,6 @@ app.add_middleware(
 )
 
 models.Base.metadata.create_all(bind=engine)
-
-@app.get("/")
-def read_root():
-    return {"message": "Kantinen-Backend läuft"}
 
 @app.get("/products", response_model=list[schemas.ProductOut])
 def get_products(db: Session = Depends(get_db)):
@@ -134,17 +145,10 @@ def import_users_from_vereinsflieger(db: Session = Depends(get_db)):
     cid = os.getenv("VFL_CID")
 
     if not all([username, password, appkey, cid]):
-        print("FEHLER: Eine oder mehrere .env-Werte fehlen.")
-        print("VFL_USERNAME:", username)
-        print("VFL_PASSWORD:", "gesetzt" if password else "FEHLT")
-        print("VFL_APPKEY:", appkey)
-        print("VFL_CID:", cid)
         raise RuntimeError("Fehlende .env-Werte")
 
     token_response = requests.get(f"{base_url}/auth/accesstoken")
     accesstoken = token_response.text.strip()
-
-    print("AccessToken:", accesstoken)
 
     login_payload = {
         "accesstoken": accesstoken,
@@ -154,12 +158,7 @@ def import_users_from_vereinsflieger(db: Session = Depends(get_db)):
         "cid": cid
     }
 
-    print("📦 Login Payload (ohne Passwort):", {k: v for k, v in login_payload.items() if k != "password"})
-
     signin = requests.post(f"{base_url}/auth/signin", data=login_payload)
-
-    print("📡 Signin Status:", signin.status_code)
-    print("📨 Signin Response:", signin.text)
 
     if signin.status_code != 200:
         raise HTTPException(status_code=401, detail="Anmeldung fehlgeschlagen")
