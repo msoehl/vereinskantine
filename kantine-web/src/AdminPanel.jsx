@@ -58,6 +58,38 @@ function Login({ setLoggedIn }) {
   );
 }
 
+useEffect(() => {
+  if (!loggedIn) return;
+
+  let timeout;
+  const logoutAfterInactivity = () => {
+    localStorage.removeItem("loggedIn");
+    localStorage.removeItem("currentUser");
+    setLoggedIn(false);
+    alert("Sie wurden aufgrund von Inaktivität ausgeloggt.");
+  };
+
+  const resetTimer = () => {
+    clearTimeout(timeout);
+    timeout = setTimeout(logoutAfterInactivity, 10 * 60 * 1000);
+  };
+
+  const activityEvents = ["mousemove", "keydown", "click", "scroll"];
+
+  activityEvents.forEach(event =>
+    window.addEventListener(event, resetTimer)
+  );
+
+  resetTimer();
+
+  return () => {
+    clearTimeout(timeout);
+    activityEvents.forEach(event =>
+      window.removeEventListener(event, resetTimer)
+    );
+  };
+}, [loggedIn]);
+
 function UtcClock() {
   const [utcTime, setUtcTime] = useState(() => formatUtc(new Date()));
 

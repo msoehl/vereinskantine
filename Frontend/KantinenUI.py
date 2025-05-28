@@ -1,10 +1,9 @@
-
 from kivy.config import Config
 Config.set('graphics', 'width', '1024')
 Config.set('graphics', 'height', '600')
 Config.set('graphics', 'resizable', False)
 Config.set('graphics', 'fullscreen', 'auto')
-Config.set('graphics', 'borderless', '1')        # Kein Fensterrahmen
+Config.set('graphics', 'borderless', '1')
 
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
@@ -24,6 +23,8 @@ class KantinenUI(App):
         self.active_category = "Getränke"
         self.user_id = None
         self.user_name = None
+        self.freigetraenke_counter = 0
+
         Clock.schedule_once(lambda dt: self.load_users(), 0.1)
         Clock.schedule_interval(lambda dt: self.load_users(), 150)
 
@@ -48,6 +49,15 @@ class KantinenUI(App):
         self.header = Label(text="Willkommen!", font_size='24sp', size_hint=(1, 0.1))
         left_area.add_widget(self.header)
 
+        self.freigetraenke_info = Label(
+            text="",
+            font_size='18sp',
+            color=(1, 1, 1, 1),
+            size_hint=(1, None),
+            height=30
+        )
+        left_area.add_widget(self.freigetraenke_info)
+
         cat_buttons = BoxLayout(size_hint=(1, 0.15), spacing=10, padding=5)
         for category in self.products_by_category.keys():
             btn = Button(
@@ -62,7 +72,6 @@ class KantinenUI(App):
         left_area.add_widget(cat_buttons)
 
         self.product_area = BoxLayout(size_hint=(1, 0.4))
-        self.load_products()
         left_area.add_widget(self.product_area)
 
         # Rechte Seite
@@ -104,11 +113,10 @@ class KantinenUI(App):
         Clock.schedule_interval(lambda dt: self.load_products_from_backend(), 120)
         self.register_activity_listeners()
         self.reset_inactivity_timer()
-
+        self.load_products()
 
         return self.root
 
-    
     def load_users(self):
         try:
             response = requests.get("http://localhost:8000/users")
@@ -123,50 +131,60 @@ class KantinenUI(App):
             self.users = []
             print("Fehler beim Abrufen der Nutzer:", e)
 
-
     def select_user_popup(self):
-            from kivy.uix.popup import Popup
-            from kivy.uix.spinner import Spinner
-            from kivy.uix.boxlayout import BoxLayout
+        from kivy.uix.popup import Popup
+        from kivy.uix.spinner import Spinner
+        from kivy.uix.boxlayout import BoxLayout
 
-            layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
-            usernames = [user["username"] for user in self.users]
-            user_dict = {user["username"]: user for user in self.users}
-            spinner = Spinner(text=usernames[0] if usernames else "Keine Benutzer verfügbar", values=usernames, size_hint=(1, None), height=44, font_size='18sp')
-            ok_button = Button(text="OK", size_hint=(1, None), height=44)
-            layout.add_widget(spinner)
-            layout.add_widget(ok_button)
+        layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
+        usernames = [user["username"] for user in self.users]
+        user_dict = {user["username"]: user for user in self.users}
+        spinner = Spinner(
+            text=usernames[0] if usernames else "Keine Benutzer verfügbar",
+            values=usernames,
+            size_hint=(1, None),
+            height=44,
+            font_size='18sp'
+        )
+        ok_button = Button(text="OK", size_hint=(1, None), height=44)
+        layout.add_widget(spinner)
+        layout.add_widget(ok_button)
 
-            popup = Popup(title='Benutzer auswählen', content=layout, size_hint=(None, None), size=(500, 250), auto_dismiss=False)
+        popup = Popup(
+            title='Benutzer auswählen',
+            content=layout,
+            size_hint=(None, None),
+            size=(500, 250),
+            auto_dismiss=False
+        )
 
-            def set_user(instance):
-                name = spinner.text
-                selected = user_dict.get(name)
-                if selected:
-                    self.user_id = selected["id"]
-                    self.user_name = selected["username"]
-                    self.items = []
-                    self.item_counts = {} 
-                    self.total = 0.0
-                    self.header.text = f"Willkommen, {self.user_name}!"
-                    self.update_summary()
-                    self.load_products()
-                    popup.dismiss()
+        def set_user(instance):
+            name = spinner.text
+            selected = user_dict.get(name)
+            if selected:
+                self.user_id = selected["id"]
+                self.user_name = selected["username"]
+                self.items = []
+                self.item_counts = {} 
+                self.total = 0.0
+                self.header.text = f"Willkommen, {self.user_name}!"
+                self.update_summary()
+                self.load_products()
+                popup.dismiss()
 
-            ok_button.bind(on_press=set_user)
-            popup.open()
-   
+        ok_button.bind(on_press=set_user)
+        popup.open()
+
     def show_rfid_popup(self):
-        
         from kivy.uix.popup import Popup
         from kivy.uix.label import Label
         from kivy.uix.button import Button
         from kivy.uix.boxlayout import BoxLayout
         from kivy.core.window import Window
-        
+
         if hasattr(self, 'rfid_popup') and self.rfid_popup and self.rfid_popup._window:
             return
-        
+
         self.rfid_buffer = ""
         layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
         self.rfid_status = Label(text="Bitte RFID scannen...", font_size='20sp')
@@ -175,7 +193,13 @@ class KantinenUI(App):
         layout.add_widget(self.rfid_status)
         layout.add_widget(manual_button)
 
-        self.rfid_popup = Popup(title='RFID Login', content=layout, size_hint=(None, None), size=(400, 200), auto_dismiss=False)
+        self.rfid_popup = Popup(
+            title='RFID Login',
+            content=layout,
+            size_hint=(None, None),
+            size=(400, 200),
+            auto_dismiss=False
+        )
 
         def manual_login(instance):
             self.rfid_popup.dismiss()
@@ -201,7 +225,6 @@ class KantinenUI(App):
                 self.load_products()
                 self.rfid_status.text = f"Eingeloggt: {self.user_name}"
                 self.rfid_popup.dismiss()
-                from kivy.core.window import Window
                 Window.unbind(on_key_down=self.handle_rfid_key)
             else:
                 self.rfid_status.text = "Unbekannter RFID – erneut versuchen"
@@ -224,9 +247,12 @@ class KantinenUI(App):
         self.load_products()
         self.header.text = "Automatischer Logout wegen Inaktivität"
         self.show_rfid_popup()
+        Clock.schedule_once(lambda dt: self.clear_auto_logout_message(), 60)
+
+    def clear_auto_logout_message(self, *args):
+        self.header.text = "Willkommen!"
 
     def register_activity_listeners(self):
-        from kivy.core.window import Window
         Window.bind(on_touch_down=lambda *x: self.reset_inactivity_timer())
         Window.bind(on_key_down=lambda *x: self.reset_inactivity_timer())
 
@@ -302,14 +328,46 @@ class KantinenUI(App):
             if cat == self.active_category:
                 btn.background_color = [0, 0.8, 0, 1]
 
+    def load_product_category(self, product_id):
+        for category, products in self.products_by_category.items():
+            for product in products.values():
+                if product["id"] == product_id:
+                    return category
+        return None
+
     def switch_category(self, instance):
         self.active_category = instance.text
         self.load_products()
 
     def finish(self, instance):
+        has_kasten = any(item["name"].lower() == "kasten" for item in self.items)
+        product_data = []
+        total = 0.0
+
+        if has_kasten:
+            product_data = [{"product_id": i["id"], "product_name": i["name"], "price": i["price"]} for i in self.items]
+            total = self.total
+            self.freigetraenke_counter += 24
+            self.header.text = f"+24 Freigetränke aktiviert – jetzt {self.freigetraenke_counter} verfügbar!"
+
+        elif self.freigetraenke_counter > 0:
+            
+            free_applied = False
+            for i in self.items:
+                if self.load_product_category(i["id"]) == "Getränke" and not free_applied:
+                    product_data.append({"product_id": i["id"], "product_name": i["name"], "price": 0.0})
+                    self.freigetraenke_counter -= 1
+                    free_applied = True
+                else:
+                    product_data.append({"product_id": i["id"], "product_name": i["name"], "price": i["price"]})
+            total = sum(p["price"] for p in product_data)
+
+        else:
+            total = self.total
+            product_data = [{"product_id": i["id"], "product_name": i["name"], "price": i["price"]} for i in self.items]
+
         try:
-            product_data = [{"product_id": item["id"], "product_name": item["name"], "price": item["price"]} for item in self.items]
-            payload = {"user_id": self.user_id, "items": product_data, "total": self.total}
+            payload = {"user_id": self.user_id, "items": product_data, "total": total}
             response = requests.post("http://localhost:8000/transaction", json=payload)
             if response.status_code == 200:
                 print("Transaktion erfolgreich gespeichert.")
@@ -320,11 +378,28 @@ class KantinenUI(App):
         self.item_counts = {} 
         self.total = 0.0
         self.update_summary()
+        self.load_products_from_backend()
+        self.load_users()
         self.load_products()
-        self.user_id = None
-        self.user_name = None
-        self.select_user_popup()
-        
+
+        if has_kasten or self.freigetraenke_counter > 0:
+            self.user_id = None
+            self.user_name = None
+            self.show_rfid_popup()
+
+    def update_summary(self):
+        text = f"Benutzer: {self.user_name or '–'}\n\nEinkauf:\n"
+        for item in self.items:
+            text += f"{item['name']} - € {item['price']:.2f}\n"
+        text += f"\nGesamt: € {self.total:.2f}"
+
+        if self.freigetraenke_counter > 0:
+            text += f"\n\nNoch {self.freigetraenke_counter} Freigetränke verfügbar"
+            self.freigetraenke_info.text = f"Noch {self.freigetraenke_counter} Freigetränke verfügbar"
+        else:
+            self.freigetraenke_info.text = ""
+
+        self.summary.text = text
 
     def cancel_transaction(self, instance):
         self.items = []
@@ -332,13 +407,6 @@ class KantinenUI(App):
         self.total = 0.0
         self.update_summary()
         self.load_products()
-
-    def update_summary(self):
-        text = f"Benutzer: {self.user_name or '–'}\n\nEinkauf:\n"
-        for item in self.items:
-            text += f"{item['name']} - € {item['price']:.2f}\n"
-        text += f"\nGesamt: € {self.total:.2f}"
-        self.summary.text = text
 
 if __name__ == '__main__':
     KantinenUI().run()
