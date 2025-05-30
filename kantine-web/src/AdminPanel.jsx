@@ -58,38 +58,6 @@ function Login({ setLoggedIn }) {
   );
 }
 
-useEffect(() => {
-  if (!loggedIn) return;
-
-  let timeout;
-  const logoutAfterInactivity = () => {
-    localStorage.removeItem("loggedIn");
-    localStorage.removeItem("currentUser");
-    setLoggedIn(false);
-    alert("Sie wurden aufgrund von Inaktivität ausgeloggt.");
-  };
-
-  const resetTimer = () => {
-    clearTimeout(timeout);
-    timeout = setTimeout(logoutAfterInactivity, 10 * 60 * 1000);
-  };
-
-  const activityEvents = ["mousemove", "keydown", "click", "scroll"];
-
-  activityEvents.forEach(event =>
-    window.addEventListener(event, resetTimer)
-  );
-
-  resetTimer();
-
-  return () => {
-    clearTimeout(timeout);
-    activityEvents.forEach(event =>
-      window.removeEventListener(event, resetTimer)
-    );
-  };
-}, [loggedIn]);
-
 function UtcClock() {
   const [utcTime, setUtcTime] = useState(() => formatUtc(new Date()));
 
@@ -135,6 +103,40 @@ export default function AdminPanel() {
   const [editUsername, setEditUsername] = useState("");
   const [editRfid, setEditRfid] = useState("");
   const [editPassword, setEditPassword] = useState("");
+
+
+
+    useEffect(() => {
+    if (!loggedIn) return;
+
+    let timeout;
+    const logoutAfterInactivity = () => {
+      localStorage.removeItem("loggedIn");
+      localStorage.removeItem("currentUser");
+      setLoggedIn(false);
+      alert("Sie wurden aufgrund von Inaktivität ausgeloggt.");
+    };
+
+    const resetTimer = () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(logoutAfterInactivity, 10 * 60 * 1000);
+    };
+
+    const activityEvents = ["mousemove", "keydown", "click", "scroll"];
+
+    activityEvents.forEach(event =>
+      window.addEventListener(event, resetTimer)
+    );
+
+    resetTimer();
+
+    return () => {
+      clearTimeout(timeout);
+      activityEvents.forEach(event =>
+        window.removeEventListener(event, resetTimer)
+      );
+    };
+  }, [loggedIn]);
 
   const importUsers = async () => {
     const res = await fetch("/import-users", { method: "POST" });
@@ -474,17 +476,42 @@ const saveUserEdit = async () => {
           </div>
         </>
       )}
+      {editingUser && (
+  <div className="p-4 border rounded shadow mt-4 bg-white max-w-md">
+    <h3 className="text-xl font-semibold mb-2">Benutzer bearbeiten</h3>
+    <div className="grid gap-2">
+      <input
+        className="p-2 border rounded"
+        placeholder="Benutzername"
+        value={editUsername}
+        onChange={(e) => setEditUsername(e.target.value)}
+      />
+      <input
+        className="p-2 border rounded"
+        placeholder="RFID"
+        value={editRfid}
+        onChange={(e) => setEditRfid(e.target.value)}
+      />
+      <input
+        className="p-2 border rounded"
+        type="password"
+        placeholder="Neues Passwort"
+        value={editPassword}
+        onChange={(e) => setEditPassword(e.target.value)}
+      />
+      <div className="flex gap-2">
+        <button onClick={saveUserEdit} className="px-4 py-2 bg-blue-500 text-white rounded">
+          Speichern
+        </button>
+        <button onClick={() => setEditingUser(null)} className="px-4 py-2 bg-gray-300 rounded">
+          Abbrechen
+        </button>
+      </div>
     </div>
-  );
-}
-    {editingUser && (
-  <div>
-    <h3>Benutzer bearbeiten</h3>
-    <input value={editUsername} onChange={(e) => setEditUsername(e.target.value)} />
-    <input value={editRfid} onChange={(e) => setEditRfid(e.target.value)} />
-    <input value={editPassword} onChange={(e) => setEditPassword(e.target.value)} placeholder="Neues Passwort" />
-    <button onClick={saveUserEdit}>Speichern</button>
-    <button onClick={() => setEditingUser(null)}>Abbrechen</button>
   </div>
 )}
-
+    </div>
+    
+  );
+  
+}
