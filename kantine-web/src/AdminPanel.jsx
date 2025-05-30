@@ -127,6 +127,14 @@ export default function AdminPanel() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordMessage, setPasswordMessage] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [editPrice, setEditPrice] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [editingUser, setEditingUser] = useState(null);
+  const [editUsername, setEditUsername] = useState("");
+  const [editRfid, setEditRfid] = useState("");
+  const [editPassword, setEditPassword] = useState("");
 
   const importUsers = async () => {
     const res = await fetch("/import-users", { method: "POST" });
@@ -160,6 +168,17 @@ export default function AdminPanel() {
     document.body.removeChild(link);
   };
 
+  const syncProducts = async () => {
+    const res = await fetch("/sync/articles", { method: "POST" });
+    if (res.ok) {
+    const result = await res.json();
+    alert(result.message);
+    fetchProducts();
+  } else {
+    alert("Fehler beim Synchronisieren.");
+  }
+  };
+
   const fetchProducts = async () => {
     const res = await fetch("/products");
     const data = await res.json();
@@ -171,6 +190,28 @@ export default function AdminPanel() {
     const data = await res.json();
     setTransactions(data);
   };
+
+const startEditProduct = (product) => {
+  setEditingProduct(product);
+  setEditName(product.name);
+  setEditPrice(product.price.toString());
+  setEditCategory(product.category);
+};
+
+const saveProductEdit = async () => {
+  await fetch(`/products/${editingProduct.id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: editName,
+      price: parseFloat(editPrice),
+      category: editCategory,
+    }),
+  });
+  setEditingProduct(null);
+  fetchProducts();
+};
+
 
   const deleteProduct = async (id) => {
     await fetch(`/products/${id}`, { method: "DELETE" });
@@ -187,6 +228,32 @@ export default function AdminPanel() {
     const data = await res.json();
     setUsers(data);
   };
+
+const startEditUser = (user) => {
+  setEditingUser(user);
+  setEditUsername(user.username);
+  setEditRfid(user.rfid);
+  setEditPassword("");
+};
+
+const saveUserEdit = async () => {
+  const payload = {
+    username: editUsername,
+    rfid: editRfid,
+  };
+  if (editPassword.trim() !== "") {
+    payload.password = editPassword;
+  }
+
+  await fetch(`/users/${editingUser.id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  setEditingUser(null);
+  fetchUsers();
+};
+
 
   const addProduct = async () => {
     await fetch("/products", {
@@ -274,6 +341,7 @@ export default function AdminPanel() {
         <>
           <div className="section">
             <h1 className="text-2xl font-bold">Produktverwaltung</h1>
+            <button onClick={syncProducts}>Produkte von Vereinsflieger laden</button>
             <div className="p-4 grid grid-cols-3 gap-2">
               <input placeholder="Produktname" value={name} onChange={e => setName(e.target.value)} />
               <input placeholder="Preis" type="number" value={price} onChange={e => setPrice(e.target.value)} />
@@ -306,7 +374,8 @@ export default function AdminPanel() {
                       <td>{prod.name}</td>
                       <td>{prod.price.toFixed(2)} €</td>
                       <td>{prod.category}</td>
-                      <td><button onClick={() => deleteProduct(prod.id)}>Löschen</button></td>
+                      <td><button onClick={() => startEditProduct(prod)}>Bearbeiten</button>
+                          <button onClick={() => deleteProduct(prod.id)}>Löschen</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -315,6 +384,18 @@ export default function AdminPanel() {
           </div>
         </>
       )}
+
+      {editingProduct && (
+  <div>
+    <h3>Produkt bearbeiten</h3>
+    <input value={editName} onChange={(e) => setEditName(e.target.value)} />
+    <input value={editPrice} onChange={(e) => setEditPrice(e.target.value)} />
+    <input value={editCategory} onChange={(e) => setEditCategory(e.target.value)} />
+    <button onClick={saveProductEdit}>Speichern</button>
+    <button onClick={() => setEditingProduct(null)}>Abbrechen</button>
+  </div>
+)}
+
 
       {view === "transactions" && (
         <>
@@ -383,7 +464,8 @@ export default function AdminPanel() {
                       <td>{u.id}</td>
                       <td>{u.username}</td>
                       <td>{u.rfid}</td>
-                      <td><button onClick={() => deleteUser(u.id)}>Löschen</button></td>
+                      <td><button onClick={() => startEditUser(u)}>Bearbeiten</button>
+                          <button onClick={() => deleteUser(u.id)}>Löschen</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -395,3 +477,14 @@ export default function AdminPanel() {
     </div>
   );
 }
+    {editingUser && (
+  <div>
+    <h3>Benutzer bearbeiten</h3>
+    <input value={editUsername} onChange={(e) => setEditUsername(e.target.value)} />
+    <input value={editRfid} onChange={(e) => setEditRfid(e.target.value)} />
+    <input value={editPassword} onChange={(e) => setEditPassword(e.target.value)} placeholder="Neues Passwort" />
+    <button onClick={saveUserEdit}>Speichern</button>
+    <button onClick={() => setEditingUser(null)}>Abbrechen</button>
+  </div>
+)}
+

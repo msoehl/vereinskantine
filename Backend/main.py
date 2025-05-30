@@ -4,6 +4,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from database import get_db, engine
 import models, schemas
+from models import Product
 from models import Transaction, TransactionItem
 from datetime import datetime
 import requests
@@ -44,6 +45,18 @@ def create_product(prod: schemas.ProductCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_item)
     return db_item
+
+
+@app.put("/products/{id}")
+def update_product(id: int, product: schemas.ProductUpdate, db: Session = Depends(get_db)):
+    db_product = db.query(Product).get(id)
+    if not db_product:
+        raise HTTPException(status_code=404, detail="Produkt nicht gefunden")
+    for attr, value in product.dict(exclude_unset=True).items():
+        setattr(db_product, attr, value)
+    db.commit()
+    db.refresh(db_product)
+    return db_product
 
 @app.get("/transactions")
 def get_transactions(db: Session = Depends(get_db)):
@@ -93,6 +106,17 @@ def get_users(db: Session = Depends(get_db)):
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = models.User(**user.dict())
     db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+@app.put("/users/{id}")
+def update_user(id: int, user: schemas.UserUpdate, db: Session = Depends(get_db)):
+    db_user = db.query(user).get(id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
+    for attr, value in user.dict(exclude_unset=True).items():
+        setattr(db_user, attr, value)
     db.commit()
     db.refresh(db_user)
     return db_user
@@ -162,7 +186,7 @@ def import_users_from_vereinsflieger(db: Session = Depends(get_db)):
 
     for m in members:
         roles = [r.get("role") for r in m.get("roles", [])]
-        if "Clubfridge" not in roles:
+        if "VereinsKantine" not in roles:
             continue
 
         if "firstname" in m and "lastname" in m:
@@ -183,3 +207,56 @@ def import_users_from_vereinsflieger(db: Session = Depends(get_db)):
 
     db.commit()
     return {"imported": created_users}
+
+@app.post("/sync/articles")
+def sync_articles_from_vereinsflieger(db: Session = Depends(get_db)):
+    
+    base_url = "https://www.vereinsflieger.de/interface/rest"
+    username = os.getenv("VFL_USERNAME")
+    password = os.getenv("VFL_PASSWORD")
+    appkey = os.getenv("VFL_APPKEY")
+    cid = os.getenv("VFL_CID")    
+    
+    r = requests.get(f"{base_url}/auth/accesstoken")
+    if r.status_code != 200:
+        raise HTTPException(status_code=500, detail="Fehler beim Abrufen des Accesstokens")
+    accesstoken = r.json()
+
+    payload = {
+        "accesstoken": accesstoken,
+        "username": username,
+        "password": hashlib.md5(password.encode()).hexdigest(),
+        "appkey": appkey,
+        "cid": cid
+    }
+    r = requests.post(f"{base_url}/auth/signin", data=payload)
+    if r.status_code != 200:
+        raise HTTPException(status_code=403, detail="Anmeldung fehlgeschlagen")
+
+    r = requests.post(f"{base_url}/articles/list", data={"accesstoken": accesstoken})
+    if r.status_code != 200:
+        raise HTTPException(status_code=500, detail="Fehler beim Abrufen der Artikel")
+    articles = r.json()
+
+    synced_count = 0
+    for art in articles:
+        if art.get("costtype") != "08800":
+            continue
+        name = art.get("designation")
+        category = art.get("description")
+        try:
+            price = art["prices"][0]["unitprice"]
+        except (IndexError, KeyError):
+            continue
+
+        existing = db.query(Product).filter_by(name=name).first()
+        if existing:
+            existing.price = price
+            existing.category = category
+        else:
+            db.add(Product(name=name, price=price, category=category))
+        synced_count += 1
+
+    db.commit()
+    return {"message": f"{synced_count} Artikel synchronisiert."}
+

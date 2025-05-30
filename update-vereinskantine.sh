@@ -7,6 +7,17 @@ BRANCH="dev"
 START_SCRIPT="start.sh"
 PACKAGE_PATH="dist/raspberry-package.tar.gz"
 
+SCRIPT_NAME=$(basename "$0")
+SCRIPT_TMP="/tmp/$SCRIPT_NAME"
+
+if [[ "$0" != "$SCRIPT_TMP" ]]; then
+  echo "📦 Kopiere mich selbst nach /tmp und starte dort neu..."
+  cp "$0" "$SCRIPT_TMP"
+  chmod +x "$SCRIPT_TMP"
+  exec "$SCRIPT_TMP"
+  exit 0
+fi
+
 echo "🔄 Starte Git-Update-Prozess aus Branch '$BRANCH'..."
 
 # Backup .env und kantine.db (wenn vorhanden)
@@ -14,7 +25,7 @@ echo "💾 Sichere .env und kantine.db..."
 ENV_BACKUP="/tmp/vereinskantine_env_backup"
 DB_BACKUP="/tmp/vereinskantine_db_backup"
 
-[ -f "$TARGET_DIR/env" ] && cp "$TARGET_DIR/env" "$ENV_BACKUP"
+[ -f "$TARGET_DIR/.env" ] && cp "$TARGET_DIR/.env" "$ENV_BACKUP"
 [ -f "$TARGET_DIR/kantine.db" ] && cp "$TARGET_DIR/kantine.db" "$DB_BACKUP"
 
 # Vorheriges Verzeichnis löschen
@@ -45,13 +56,14 @@ else
     echo "⚠️ Kein Paket gefunden unter: $PACKAGE_PATH – überspringe Entpacken."
 fi
 
-# Wiederherstellen von Backups
+
 echo "♻️ Stelle .env und kantine.db wieder her..."
-[ -f "$ENV_BACKUP" ] && cp "$ENV_BACKUP" "$TARGET_DIR/env"
+[ -f "$ENV_BACKUP" ] && cp "$ENV_BACKUP" "$TARGET_DIR/.env"
 [ -f "$DB_BACKUP" ] && cp "$DB_BACKUP" "$TARGET_DIR/kantine.db"
 
-# Startskript ausführen
+
 chmod +x "$START_SCRIPT"
+sleep 5
 echo "🚀 Starte Anwendung..."
 ./"$START_SCRIPT"
 

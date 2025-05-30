@@ -15,6 +15,13 @@ class ProductCreate(BaseModel):
     price: float
     category: str
 
+
+class ProductUpdate(BaseModel):
+    name: str
+    price: float
+    category: str
+    
+
 class TransactionItem(BaseModel):
     product_id: int
     product_name: str
@@ -36,6 +43,11 @@ class TransactionFull(BaseModel):
         from_attributes = True
 
 class UserCreate(BaseModel):
+    username: str
+    rfid: str
+    password: str
+
+class UserUpdate(BaseModel):
     username: str
     rfid: str
     password: str
