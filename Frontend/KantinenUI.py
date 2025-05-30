@@ -351,15 +351,20 @@ class KantinenUI(App):
             self.header.text = f"+24 Freigetränke aktiviert – jetzt {self.freigetraenke_counter} verfügbar!"
 
         elif self.freigetraenke_counter > 0:
-            
-            free_applied = False
             for i in self.items:
-                if self.load_product_category(i["id"]) == "Getränke" and not free_applied:
-                    product_data.append({"product_id": i["id"], "product_name": i["name"], "price": 0.0})
+                if self.load_product_category(i["id"]) == "Getränke" and self.freigetraenke_counter > 0:
+                    product_data.append({
+                        "product_id": i["id"],
+                        "product_name": i["name"],
+                        "price": 0.0
+                    })
                     self.freigetraenke_counter -= 1
-                    free_applied = True
                 else:
-                    product_data.append({"product_id": i["id"], "product_name": i["name"], "price": i["price"]})
+                    product_data.append({
+                        "product_id": i["id"],
+                        "product_name": i["name"],
+                        "price": i["price"]
+                    })
             total = sum(p["price"] for p in product_data)
 
         else:
@@ -389,8 +394,16 @@ class KantinenUI(App):
 
     def update_summary(self):
         text = f"Benutzer: {self.user_name or '–'}\n\nEinkauf:\n"
+
+        counted_items = {}
         for item in self.items:
-            text += f"{item['name']} - € {item['price']:.2f}\n"
+            key = (item["name"], item["price"])
+            counted_items[key] = counted_items.get(key, 0) + 1
+
+        for (name, price), count in counted_items.items():
+            preis = f"€ {price:.2f}" if price > 0 else "0 € (frei)"
+            text += f"{name} x{count} - {preis}\n"
+
         text += f"\nGesamt: € {self.total:.2f}"
 
         if self.freigetraenke_counter > 0:
