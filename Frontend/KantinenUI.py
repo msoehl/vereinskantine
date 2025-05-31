@@ -344,15 +344,21 @@ class KantinenUI(App):
         self.load_products()
 
     def finish(self, instance):
-        has_kasten = any(item["name"].lower() == "kasten" for item in self.items)
+        kasten_anzahl = sum(
+        count
+        for pid, count in self.item_counts.items()
+        for cat_items in self.products_by_category.values()
+        for product in cat_items.values()
+        if product["id"] == pid and product["name"].lower() == "kasten"
+        )
         product_data = []
         total = 0.0
 
-        if has_kasten:
+        if kasten_anzahl:
             product_data = [{"product_id": i["id"], "product_name": i["name"], "price": i["price"]} for i in self.items]
             total = self.total
-            self.freigetraenke_counter += 24
-            self.header.text = f"+24 Freigetränke aktiviert – jetzt {self.freigetraenke_counter} verfügbar!"
+            self.freigetraenke_counter += 24 * kasten_anzahl
+            self.header.text = f"+{24 * kasten_anzahl} Freigetränke aktiviert – jetzt {self.freigetraenke_counter} verfügbar!"
 
         elif self.freigetraenke_counter > 0:
             for i in self.items:
@@ -390,11 +396,9 @@ class KantinenUI(App):
         self.load_products_from_backend()
         self.load_users()
         self.load_products()
-
-        if has_kasten or self.freigetraenke_counter > 0:
-            self.user_id = None
-            self.user_name = None
-            self.show_rfid_popup()
+        self.user_id = None
+        self.user_name = None
+        self.show_rfid_popup()
 
     def update_summary(self):
         text = f"Benutzer: {self.user_name or '–'}\n\nEinkauf:\n"

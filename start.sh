@@ -13,6 +13,20 @@ source .venv/bin/activate
 # Abhängigkeiten installieren
 pip install -r requirements.txt
 
+
+# Aufräumen: lösche alle überflüssigen Projektdateien
+echo "🧹 Entferne nicht benötigte Ordner und Dateien..."
+
+for item in "Frontend" "Backend" "kantine-web" "dist" "__pycache__" ".git" ".github" "raspberry-package.tar.gz" ".env_sample" "README.md" ".gitignore"; do
+  if [ -e "$item" ]; then
+    echo "🗑️ Lösche: $item"
+    rm -rf "$item"
+  fi
+done
+
+echo "✅ Bereinigung abgeschlossen. System bereit für den Produktivbetrieb."
+
+
 # Backend starten
 echo "🚀 Starte Backend..."
 nohup uvicorn main:app --host 0.0.0.0 --port 8000 --app-dir backend > backend.log 2>&1 &
@@ -40,15 +54,3 @@ if [ -n "$DISPLAY" ]; then
 else
   echo "⚠️ Keine grafische Oberfläche erkannt (DISPLAY nicht gesetzt) – GUI wird nicht gestartet."
 fi
-
-# Aufräumen: lösche alle überflüssigen Projektdateien
-echo "🧹 Entferne nicht benötigte Ordner und Dateien..."
-
-for item in "Frontend" "Backend" "kantine-web" "dist" "__pycache__" ".git" ".github" "raspberry-package.tar.gz" ".env_sample" "README.md" ".gitignore"; do
-  if [ -e "$item" ]; then
-    echo "🗑️ Lösche: $item"
-    rm -rf "$item"
-  fi
-done
-
-echo "✅ Bereinigung abgeschlossen. System bereit für den Produktivbetrieb."
