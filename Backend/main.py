@@ -112,7 +112,7 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
 
 @app.put("/users/{id}")
 def update_user(id: int, user: schemas.UserUpdate, db: Session = Depends(get_db)):
-    db_user = db.query(user).get(id)
+    db_user = db.query(models.User).get(id)
     if not db_user:
         raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
     for attr, value in user.dict(exclude_unset=True).items():

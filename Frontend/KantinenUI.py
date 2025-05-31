@@ -233,11 +233,15 @@ class KantinenUI(App):
 
     def reset_inactivity_timer(self, *args):
         from kivy.clock import Clock
+        if not self.user_id:
+            return
         if hasattr(self, 'inactivity_event') and self.inactivity_event:
             self.inactivity_event.cancel()
         self.inactivity_event = Clock.schedule_once(self.perform_auto_logout, 180)
 
     def perform_auto_logout(self, *args):
+        if not self.user_id:
+            return
         self.items = []
         self.item_counts = {} 
         self.total = 0.0

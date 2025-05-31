@@ -106,9 +106,9 @@ export default function AdminPanel() {
 
 
 
-    useEffect(() => {
-    if (!loggedIn) return;
-
+  useEffect(() => {
+  const currentUser = localStorage.getItem("currentUser");
+  if (!loggedIn || !currentUser) return;
     let timeout;
     const logoutAfterInactivity = () => {
       localStorage.removeItem("loggedIn");
@@ -201,6 +201,10 @@ const startEditProduct = (product) => {
 };
 
 const saveProductEdit = async () => {
+  if (!editName || !editPrice || !editCategory) {
+  alert("Bitte alle Felder beim Produkt bearbeiten ausfüllen.");
+  return;
+}
   await fetch(`/products/${editingProduct.id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -239,6 +243,10 @@ const startEditUser = (user) => {
 };
 
 const saveUserEdit = async () => {
+  if (!editUsername || !editRfid) {
+  alert("Bitte Benutzername und RFID eingeben.");
+  return;
+}
   const payload = {
     username: editUsername,
     rfid: editRfid,
@@ -257,31 +265,60 @@ const saveUserEdit = async () => {
 };
 
 
-  const addProduct = async () => {
-    await fetch("/products", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, price: parseFloat(price), category })
-    });
-    setName("");
-    setPrice("");
-    setCategory("");
-    fetchProducts();
-  };
+const addProduct = async () => {
+  if (!name || !price || !category) {
+    alert("Bitte alle Produktfelder ausfüllen.");
+    return;
+  }
+
+  const priceNumber = parseFloat(price);
+  if (isNaN(priceNumber) || priceNumber < 0) {
+    alert("Bitte einen gültigen Preis angeben.");
+    return;
+  }
+
+  const res = await fetch("/products", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, price: priceNumber, category })
+  });
+
+  if (!res.ok) {
+    alert("Fehler beim Speichern des Produkts.");
+    return;
+  }
+
+  setName("");
+  setPrice("");
+  setCategory("");
+  fetchProducts();
+};
 
   const addUser = async () => {
-    await fetch("/users", {
+    if (!username || !rfid || !userPassword) {
+      alert("Bitte alle Benutzerfelder ausfüllen.");
+      return;
+    }
+
+    const res = await fetch("/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, rfid, password: userPassword })
     });
-    localStorage.setItem("username", username);
-    localStorage.setItem("user_password", userPassword);
-    setUsername("");
-    setRfid("");
-    setUserPassword("");
-    fetchUsers();
-  };
+
+    if (!res.ok) {
+      alert("Fehler beim Anlegen des Benutzers.");
+      return;
+    }
+
+  localStorage.setItem("username", username);
+  localStorage.setItem("user_password", userPassword);
+  setUsername("");
+  setRfid("");
+  setUserPassword("");
+  fetchUsers();
+};
+
 
   const changePassword = () => {
     const currentUser = localStorage.getItem("currentUser");
@@ -376,8 +413,10 @@ const saveUserEdit = async () => {
                       <td>{prod.name}</td>
                       <td>{prod.price.toFixed(2)} €</td>
                       <td>{prod.category}</td>
-                      <td><button onClick={() => startEditProduct(prod)}>Bearbeiten</button>
-                          <button onClick={() => deleteProduct(prod.id)}>Löschen</button></td>
+                      <td className="space-x-2">
+                      <button onClick={() => startEditProduct(prod)} className="bg-yellow-400 px-2 py-1 rounded">Bearbeiten</button>
+                      <button className="bg-red-500 text-white px-2 py-1 rounded">Löschen</button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -477,8 +516,10 @@ const saveUserEdit = async () => {
                       <td>{u.id}</td>
                       <td>{u.username}</td>
                       <td>{u.rfid}</td>
-                      <td><button onClick={() => startEditUser(u)}>Bearbeiten</button>
-                          <button onClick={() => deleteUser(u.id)}>Löschen</button></td>
+                      <td className="space-x-2">
+                      <button onClick={() => startEditUser(u)} className="bg-yellow-400 px-2 py-1 rounded">Bearbeiten</button>
+                      <button className="bg-red-500 text-white px-2 py-1 rounded">Löschen</button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -503,7 +544,6 @@ const saveUserEdit = async () => {
     </div>
   </div>
 )}
-
     </div>
     
   );
