@@ -403,7 +403,7 @@ const addProduct = async () => {
                     <th>Name</th>
                     <th>Preis</th>
                     <th>Kategorie</th>
-                    <th>Löschen</th>
+                    <th>Bearbeiten / Löschen</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -507,7 +507,7 @@ const addProduct = async () => {
                     <th>ID</th>
                     <th>Name</th>
                     <th>RFID</th>
-                    <th>Löschen</th>
+                    <th>Bearbeiten / Löschen</th>
                   </tr>
                 </thead>
                 <tbody>
