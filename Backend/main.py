@@ -220,7 +220,7 @@ def sync_articles_from_vereinsflieger(db: Session = Depends(get_db)):
     r = requests.get(f"{base_url}/auth/accesstoken")
     if r.status_code != 200:
         raise HTTPException(status_code=500, detail="Fehler beim Abrufen des Accesstokens")
-    accesstoken = r.json()
+    accesstoken = accesstoken = r.text.strip()
 
     payload = {
         "accesstoken": accesstoken,
