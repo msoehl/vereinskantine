@@ -159,8 +159,9 @@ def import_users_from_vereinsflieger(db: Session = Depends(get_db)):
     if not all([username, password, appkey, cid]):
         raise RuntimeError("Fehlende .env-Werte")
 
-    token_response = requests.get(f"{base_url}/auth/accesstoken")
-    accesstoken = token_response.text.strip()
+    r = requests.get(f"{base_url}/auth/accesstoken")
+    r.raise_for_status()
+    accesstoken = r.json()["accesstoken"]
 
     login_payload = {
         "accesstoken": accesstoken,
@@ -218,9 +219,8 @@ def sync_articles_from_vereinsflieger(db: Session = Depends(get_db)):
     cid = os.getenv("VFL_CID")    
     
     r = requests.get(f"{base_url}/auth/accesstoken")
-    if r.status_code != 200:
-        raise HTTPException(status_code=500, detail="Fehler beim Abrufen des Accesstokens")
-    accesstoken = accesstoken = r.text.strip()
+    r.raise_for_status()
+    accesstoken = r.json()["accesstoken"]
 
     payload = {
         "accesstoken": accesstoken,
