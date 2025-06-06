@@ -56,5 +56,5 @@ jobs:
           mkdir -p dist
           cp raspberry-package.tar.gz dist/
           git add dist/raspberry-package.tar.gz
-          git commit -m "Add Raspberry Pi build artifact [skip ci]" || echo "Nothing to commit"
+          git commit -m "Add Raspberry Pi build" || echo "Nothing to commit"
           git push origin dev
