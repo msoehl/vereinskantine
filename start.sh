@@ -17,7 +17,7 @@ pip install -r requirements.txt
 # Aufräumen: lösche alle überflüssigen Projektdateien
 echo "🧹 Entferne nicht benötigte Ordner und Dateien..."
 
-for item in "Frontend" "Backend" "kantine-web" "dist" "__pycache__" ".git" ".github" "raspberry-package.tar.gz" ".env_sample" "README.md" ".gitignore"; do
+for item in "Frontend" "Backend" "kantine-web" "dist" "__pycache__" ".git" ".github" "raspberry-package.tar.gz" "README.md" ".gitignore"; do
   if [ -e "$item" ]; then
     echo "🗑️ Lösche: $item"
     rm -rf "$item"
