@@ -33,5 +33,5 @@ class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
-    rfid = Column(String, unique=True, index=True)
-    password = Column(String)
+    rfid = Column(String, unique=True, index=True, nullable=True)
+    password = Column(String, nullable=True)

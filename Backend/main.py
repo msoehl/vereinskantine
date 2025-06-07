@@ -157,11 +157,14 @@ def import_users_from_vereinsflieger(db: Session = Depends(get_db)):
     cid = os.getenv("VFL_CID")
 
     if not all([username, password, appkey, cid]):
-        raise RuntimeError("Fehlende .env-Werte")
+        raise HTTPException(status_code=500, detail="Fehlende .env-Werte")
 
-    r = requests.get(f"{base_url}/auth/accesstoken")
-    r.raise_for_status()
-    accesstoken = r.json()["accesstoken"]
+    try:
+        r = requests.get(f"{base_url}/auth/accesstoken")
+        r.raise_for_status()
+        accesstoken = r.json()["accesstoken"]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Tokenfehler: {str(e)}")
 
     login_payload = {
         "accesstoken": accesstoken,
@@ -172,41 +175,66 @@ def import_users_from_vereinsflieger(db: Session = Depends(get_db)):
     }
 
     signin = requests.post(f"{base_url}/auth/signin", data=login_payload)
-
     if signin.status_code != 200:
-        raise HTTPException(status_code=401, detail="Anmeldung fehlgeschlagen")
+        raise HTTPException(status_code=401, detail=f"Anmeldung fehlgeschlagen: {signin.text}")
 
-    member_response = requests.post(
-        f"{base_url}/user/list", data={"accesstoken": accesstoken}
-    )
+    member_response = requests.post(f"{base_url}/user/list", data={"accesstoken": accesstoken})
     if member_response.status_code != 200:
         raise HTTPException(status_code=500, detail="Mitgliederliste konnte nicht geladen werden")
 
-    members = member_response.json()
-    created_users = []
+    try:
+        members = member_response.json()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"JSON-Fehler in Mitgliederliste: {e}")
 
+    if not isinstance(members, list):
+        raise HTTPException(status_code=500, detail="Unerwartete Antwortstruktur – 'members' ist kein Array.")
+
+    created_users = []
     for m in members:
-        roles = [r.get("role") for r in m.get("roles", [])]
-        if "VereinsKantine" not in roles:
+        if not isinstance(m, dict):
             continue
 
-        if "firstname" in m and "lastname" in m:
-            username = f"{m['firstname']} {m['lastname']}".strip()
+        roles = m.get("roles", [])
+        if not isinstance(roles, list) or "VereinsKantine" not in roles:
+            continue
 
-            rfid = None
-            key_entries = m.get("keymanagement", [])
+        firstname = m.get("firstname", "").strip()
+        lastname = m.get("lastname", "").strip()
+        if not firstname or not lastname:
+            continue
+
+        username = f"{firstname} {lastname}"
+
+
+        rfid = None
+        key_entries = m.get("keymanagement", [])
+        if isinstance(key_entries, list):
             for key in key_entries:
-                if key.get("label") == "Schlüssel 2":
-                    rfid = key.get("value")
-                    break
+                if key.get("title") == "Schlüssel 2":
+                    rfid_candidate = key.get("keyname") or key.get("rfidkey")
+                    if rfid_candidate and str(rfid_candidate).strip():
+                        rfid = str(rfid_candidate).strip()
+                        break
 
-            existing = db.query(models.User).filter_by(username=username).first()
-            if not existing:
-                user = models.User(username=username, rfid=rfid, password=None)
-                db.add(user)
-                created_users.append(username)
+        if not rfid:
+            continue
 
-    db.commit()
+        if db.query(models.User).filter_by(username=username).first():
+            continue
+
+        user = models.User(username=username, rfid=rfid, password=None)
+        db.add(user)
+        created_users.append(username)
+
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Datenbankfehler: {str(e)}")
+
     return {"imported": created_users}
 
 @app.post("/sync/articles")
