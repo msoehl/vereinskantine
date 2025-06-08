@@ -10,6 +10,7 @@ from datetime import datetime
 import requests
 import hashlib
 import os
+import json
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -33,6 +34,12 @@ def read_status():
     return {"message": "Kantinen-Backend läuft"}
 
 models.Base.metadata.create_all(bind=engine)
+
+@app.post("/vfl-settings")
+def set_vfl_enabled(setting: dict):
+    with open("settings.json", "w") as f:
+        json.dump(setting, f)
+    return {"status": "ok"}
 
 @app.get("/products", response_model=list[schemas.ProductOut])
 def get_products(db: Session = Depends(get_db)):
@@ -81,22 +88,74 @@ def get_transactions(db: Session = Depends(get_db)):
 
 @app.post("/transaction")
 def create_transaction(trans: schemas.TransactionIn, db: Session = Depends(get_db)):
+    vflEnabled = getattr(trans, "use_vfl", False)
+    from datetime import datetime
+    import os
+    import requests
+
+    print("📥 [DEBUG] Neue Transaktion wird erstellt")
     db_trans = Transaction(user_id=trans.user_id, total=trans.total, timestamp=datetime.utcnow())
     db.add(db_trans)
     db.commit()
     db.refresh(db_trans)
+    print(f"✅ [DEBUG] Transaktion ID {db_trans.id} gespeichert")
+
+    
+    db_user = db.query(models.User).filter(models.User.id == trans.user_id).first()
+    if db_user:
+        vf_uid = db_user.vf_uid
+        print(f"👤 [DEBUG] Benutzer {db_user.username} mit vf_uid={vf_uid} gefunden")
+    else:
+        vf_uid = None
+        print("⚠️ [WARNUNG] Kein Benutzer gefunden – Vereinsflieger-Verkauf wird übersprungen")
 
     for item in trans.items:
+        print(f"➕ [DEBUG] Artikel {item.product_name} (ID {item.product_id}) wird gespeichert")
         db_item = TransactionItem(
             transaction_id=db_trans.id,
             product_id=item.product_id,
             product_name=item.product_name,
-            price=item.price
+            price=item.price,
+            amount=item.amount
         )
         db.add(db_item)
 
+        if (vflEnabled):
+            if vf_uid:
+                product = db.query(models.Product).filter(models.Product.id == item.product_id).first()
+                price = product.price if product else item.price
+                salestax = product.salestax if product and product.salestax is not None else float(os.getenv("VFL_TAX_RATE", 7))
+                amount = item.amount if hasattr(item, "amount") else 1
+                articleid = product.vfl_articleid if product and product.vfl_articleid else str(item.product_id)
+
+                payload = {
+                    "accesstoken": os.getenv("VFL_ACCESS_TOKEN"),
+                    "bookingdate": datetime.utcnow().date().isoformat(),
+                    "articleid": articleid,
+                    "amount": amount, 
+                    "memberid": vf_uid,
+                    "comment": f"Kantine Verkauf: {item.product_name}",
+                    "spid": int(os.getenv("VFL_SPHERE", 1)),
+                    #"totalprice": round(price * amount, 2), 
+                    "salestax": salestax
+                }
+
+                print(f"🌐 [DEBUG] Sende Verkauf an Vereinsflieger: {payload}")
+                try:
+                    vf_response = requests.post("https://www.vereinsflieger.de/interface/rest/sale/add", json=payload)
+                    print(f"📡 [DEBUG] Antwortcode: {vf_response.status_code}")
+                    if vf_response.status_code != 200:
+                        print(f"❌ [VFL-Fehler] {vf_response.text}")
+                except Exception as e:
+                    print(f"❌ [ERROR] API-Aufruf an Vereinsflieger fehlgeschlagen: {e}")
+            else:
+                print(f"⚠️ [WARNUNG] Kein vf_uid für Artikel {item.product_name} – übersprungen")
+        
     db.commit()
+    print("✅ [DEBUG] Transaktion abgeschlossen")
+
     return {"message": "Transaktion gespeichert", "transaction_id": db_trans.id}
+
 
 @app.get("/users", response_model=list[schemas.UserOut])
 def get_users(db: Session = Depends(get_db)):
@@ -365,9 +424,10 @@ def sync_articles_from_vereinsflieger(db: Session = Depends(get_db)):
             print(f"DEBUG: Aktualisiere bestehenden Artikel: {name}")
             existing.price = price
             existing.category = category
+            existing.vfl_articleid = art.get("articleid")
         else:
             print(f"DEBUG: Neuer Artikel wird hinzugefügt: {name}")
-            db.add(Product(name=name, price=price, category=category))
+            db.add(Product(name=name, price=price, category=category,salestax=art.get("prices")[0].get("salestax", 7),vfl_articleid=art.get("articleid")))
 
         synced_count += 1
 

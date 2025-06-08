@@ -8,9 +8,11 @@ Base = declarative_base()
 class Product(Base):
     __tablename__ = "products"
     id = Column(Integer, primary_key=True, index=True)
+    vfl_articleid = Column(String, nullable=True)
     name = Column(String, unique=True)
     price = Column(Float)
     category = Column(String, nullable=True)
+    salestax = Column(Float, default=19.0)
     
 class Transaction(Base):
     __tablename__ = "transactions"
@@ -27,6 +29,7 @@ class TransactionItem(Base):
     product_id = Column(Integer)
     product_name = Column(String)
     price = Column(Float)
+    amount = Column(Integer, default=1)
     transaction = relationship("Transaction", back_populates="items")
 
 class User(Base):

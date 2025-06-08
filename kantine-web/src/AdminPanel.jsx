@@ -84,11 +84,15 @@ function UtcClock() {
 export default function AdminPanel() {
   const [loggedIn, setLoggedIn] = useState(() => localStorage.getItem("loggedIn") === "true");
   const [view, setView] = useState("products");
+  const [selectedMonth, setSelectedMonth] = useState(() => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;});
+  const [useVFL, setUseVFL] = useState(() => { return localStorage.getItem("vflEnabled") === "true";});
   const [products, setProducts] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [users, setUsers] = useState([]);
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
+  const [vflArticleId, setVflArticleId] = useState("");
+  const [salestax, setSalestax] = useState("7");
   const [category, setCategory] = useState("");
   const [username, setUsername] = useState("");
   const [rfid, setRfid] = useState("");
@@ -106,6 +110,10 @@ export default function AdminPanel() {
   const [editRfid, setEditRfid] = useState("");
   const [editPassword, setEditPassword] = useState("");
   const [editvfuid, setEditvfuid] = useState("");
+  const [editVflArticleId, setEditVflArticleId] = useState("");
+  const [editSalestax, setEditSalestax] = useState("");
+
+  
 
 
 
@@ -140,6 +148,18 @@ export default function AdminPanel() {
       );
     };
   }, [loggedIn]);
+
+  const toggleVfl = () => {
+    const newValue = !useVFL;
+    setUseVFL(newValue);
+    localStorage.setItem("vflEnabled", String(newValue));
+
+    fetch("/vfl-settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ vfl_enabled: newValue }),
+    });
+  };
 
   const importUsers = async () => {
     const res = await fetch("/import-users", { method: "POST" });
@@ -201,6 +221,8 @@ const startEditProduct = (product) => {
   setEditName(product.name);
   setEditPrice(product.price.toString());
   setEditCategory(product.category);
+  setEditVflArticleId(product.vfl_articleid || "");
+  setEditSalestax(product.salestax?.toString() || "7");
 };
 
 const saveProductEdit = async () => {
@@ -215,6 +237,8 @@ const saveProductEdit = async () => {
       name: editName,
       price: parseFloat(editPrice),
       category: editCategory,
+      vfl_articleid: editVflArticleId,
+      salestax: parseFloat(editSalestax),
     }),
   });
   setEditingProduct(null);
@@ -237,6 +261,14 @@ const saveProductEdit = async () => {
     const data = await res.json();
     setUsers(data);
   };
+
+const filteredTransactions = selectedMonth
+  ? transactions.filter(t => {
+      const date = new Date(t.timestamp);
+      const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      return yearMonth === selectedMonth;
+    })
+  : transactions;
 
 const startEditUser = (user) => {
   setEditingUser(user);
@@ -285,7 +317,7 @@ const addProduct = async () => {
   const res = await fetch("/products", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, price: priceNumber, category })
+    body: JSON.stringify({ name, price: priceNumber, category,  vfl_articleid: vflArticleId, salestax: parseFloat(salestax), })
   });
 
   if (!res.ok) {
@@ -383,6 +415,10 @@ const addProduct = async () => {
             <button onClick={changePassword}>Passwort ändern</button>
             {passwordMessage && <div className={`mt-2 ${passwordSuccess ? "text-green-600" : "text-red-500"}`}>{passwordMessage}</div>}
           </div>
+          <div className="flex items-center gap-2">
+            <input type="checkbox" checked={useVFL} onChange={toggleVfl} />
+            <label className="ml-2">Vereinsflieger Integration aktivieren</label>
+          </div>
         </div>
       )}
 
@@ -390,10 +426,12 @@ const addProduct = async () => {
         <>
           <div className="section">
             <h1 className="text-2xl font-bold">Produktverwaltung</h1>
-            <button onClick={syncProducts}>Produkte von Vereinsflieger laden</button>
+            {useVFL && (<button onClick={syncProducts}>Produkte von Vereinsflieger laden</button>)}
             <div className="p-4 grid grid-cols-3 gap-2">
               <input placeholder="Produktname" value={name} onChange={e => setName(e.target.value)} />
+              <input placeholder="VFL Artikel-ID" value={vflArticleId} onChange={e => setVflArticleId(e.target.value.replace(/\D/g, ""))}/>
               <input placeholder="Preis € " type="number" value={price} onChange={e => setPrice(e.target.value)} />
+              <input placeholder="MwSt (%)" type="number" step="0.1" value={salestax} onChange={e => setSalestax(e.target.value)} />
               <select value={category} onChange={e => setCategory(e.target.value)}>
                 <option value="">Kategorie wählen</option>
                 <option value="Getränke">Getränke</option>
@@ -410,8 +448,10 @@ const addProduct = async () => {
                 <thead>
                   <tr>
                     <th>ID</th>
+                    <th>VFL Artikel-ID</th>
                     <th>Name</th>
                     <th>Preis</th>
+                    <th>MWSt</th>
                     <th>Kategorie</th>
                     <th>Bearbeiten / Löschen</th>
                   </tr>
@@ -420,8 +460,10 @@ const addProduct = async () => {
                   {products.map(prod => (
                     <tr key={prod.id}>
                       <td>{prod.id}</td>
+                      <td>{prod.vfl_articleid || "-"}</td>
                       <td>{prod.name}</td>
                       <td>{prod.price.toFixed(2)} €</td>
+                      <td>{prod.salestax ? prod.salestax.toFixed(1) + " %" : "-"}</td>
                       <td>{prod.category}</td>
                       <td>
                       <div className="button-group">
@@ -449,9 +491,23 @@ const addProduct = async () => {
                 className="p-2 border rounded"
               />
               <input
+                placeholder="VFL Artikel-ID"
+                value={editVflArticleId}
+                onChange={(e) => setEditVflArticleId(e.target.value)}
+              />
+              <input
                 value={editPrice}
                 onChange={(e) => setEditPrice(e.target.value)}
                 className="p-2 border rounded"
+              />
+              <input
+                placeholder="MwSt (%)"
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                value={editSalestax}
+                onChange={(e) => setEditSalestax(e.target.value)}
               />
               <select
                 value={editCategory}
@@ -480,6 +536,16 @@ const addProduct = async () => {
             <div className="flex justify-between items-center">
               <h1 className="text-2xl font-bold">Transaktionen</h1>
               <button onClick={exportTransactions}>CSV exportieren</button>
+              <div className="flex items-center gap-2 mb-4">
+              <label htmlFor="month" className="font-semibold">Monat wählen:</label>
+              <input
+                id="month"
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="p-2 border rounded"
+              />
+            </div>
             </div>
             <div className="p-4">
               <table>
@@ -493,7 +559,7 @@ const addProduct = async () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {Array.isArray(transactions) && transactions.map(t => (
+                  {Array.isArray(filteredTransactions) && filteredTransactions.map(t => (
                     <tr key={t.id}>
                       <td>{t.id}</td>
                       <td>{getUsernameById(t.user_id)}</td>
@@ -512,7 +578,7 @@ const addProduct = async () => {
       {view === "users" && (
         <>
           <div className="section">
-            <h1 className="text-2xl font-bold">Benutzerverwaltung</h1><button onClick={importUsers}>Mitglieder importieren (Vereinsflieger)</button>
+            <h1 className="text-2xl font-bold">Benutzerverwaltung</h1>{useVFL && (<button onClick={importUsers}>Mitglieder importieren (Vereinsflieger)</button>)}
             <div className="p-4 grid grid-cols-4 gap-2">
               <input placeholder="Benutzername" value={username} onChange={e => setUsername(e.target.value)} />
               <input placeholder="RFID" value={rfid} onChange={e => setRfid(e.target.value)} />

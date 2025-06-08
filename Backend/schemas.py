@@ -8,6 +8,9 @@ class ProductOut(BaseModel):
     name: str
     price: float
     category: str
+    salestax: float
+    vfl_articleid:str
+
     class Config:
         from_attributes = True
 
@@ -15,6 +18,8 @@ class ProductCreate(BaseModel):
     name: str
     price: float
     category: str
+    vfl_articleid:str
+    salestax: float = 7.0
 
 
 class ProductUpdate(BaseModel):
@@ -27,11 +32,13 @@ class TransactionItem(BaseModel):
     product_id: int
     product_name: str
     price: float
+    amount: int = 1
 
 class TransactionIn(BaseModel):
     user_id: int
     total: float
     items: List[TransactionItem]
+    vfl_enabled: Optional[bool] = False
     
 class TransactionFull(BaseModel):
     id: int

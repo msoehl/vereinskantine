@@ -14,6 +14,7 @@ from kivy.uix.label import Label
 from kivy.uix.scrollview import ScrollView
 from kivy.clock import Clock
 import requests
+import json
 
 class KantinenUI(App):
     def build(self):
@@ -230,7 +231,13 @@ class KantinenUI(App):
                 self.rfid_status.text = "Unbekannter RFID – erneut versuchen"
         elif codepoint:
             self.rfid_buffer += codepoint
-
+    def is_vfl_enabled(self):
+        try:
+            with open("settings.json", "r") as f:
+                return json.load(f).get("vfl_enabled", False)
+        except:
+            return False
+    
     def reset_inactivity_timer(self, *args):
         from kivy.clock import Clock
         if not self.user_id:
@@ -382,7 +389,7 @@ class KantinenUI(App):
             product_data = [{"product_id": i["id"], "product_name": i["name"], "price": i["price"]} for i in self.items]
 
         try:
-            payload = {"user_id": self.user_id, "items": product_data, "total": total}
+            payload = {"user_id": self.user_id, "items": product_data, "total": total,"vfl_enabled": self.is_vfl_enabled()}
             response = requests.post("http://localhost:8000/transaction", json=payload)
             if response.status_code == 200:
                 print("Transaktion erfolgreich gespeichert.")
