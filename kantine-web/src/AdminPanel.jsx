@@ -393,7 +393,7 @@ const addProduct = async () => {
             <button onClick={syncProducts}>Produkte von Vereinsflieger laden</button>
             <div className="p-4 grid grid-cols-3 gap-2">
               <input placeholder="Produktname" value={name} onChange={e => setName(e.target.value)} />
-              <input placeholder="Preis" type="number" value={price} onChange={e => setPrice(e.target.value)} />
+              <input placeholder="Preis € " type="number" value={price} onChange={e => setPrice(e.target.value)} />
               <select value={category} onChange={e => setCategory(e.target.value)}>
                 <option value="">Kategorie wählen</option>
                 <option value="Getränke">Getränke</option>

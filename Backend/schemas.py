@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import List
 from datetime import datetime
+from typing import Optional
 
 class ProductOut(BaseModel):
     id: int
@@ -50,7 +51,7 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     username: str
     rfid: str
-    password: str
+    password: Optional[str] = None
 
 class UserOut(BaseModel):
     id: int
