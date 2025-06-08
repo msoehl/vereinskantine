@@ -27,7 +27,7 @@ app.mount("/assets", StaticFiles(directory=os.path.join(web_path, "assets")), na
 async def serve_index():
     return FileResponse(os.path.join(web_path, "index.html"))
 
-# Optionaler Backend-Status-Endpunkt
+# Optionaler Backend–Status-Endpunkt
 @app.get("/status")
 def read_status():
     return {"message": "Kantinen-Backend läuft"}
@@ -150,20 +150,27 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
 
 @app.post("/import-users")
 def import_users_from_vereinsflieger(db: Session = Depends(get_db)):
+    print("DEBUG: Starte Import von Vereinsflieger-Nutzern")
+
     base_url = "https://www.vereinsflieger.de/interface/rest"
     username = os.getenv("VFL_USERNAME")
     password = os.getenv("VFL_PASSWORD")
     appkey = os.getenv("VFL_APPKEY")
     cid = os.getenv("VFL_CID")
+    print(f"DEBUG: env geladen: USER={username}, CID={cid}, APPKEY={appkey}")
 
     if not all([username, password, appkey, cid]):
+        print("ERROR: Fehlende Umgebungsvariablen")
         raise HTTPException(status_code=500, detail="Fehlende .env-Werte")
 
     try:
+        print("DEBUG: Fordere Access-Token an...")
         r = requests.get(f"{base_url}/auth/accesstoken")
         r.raise_for_status()
         accesstoken = r.json()["accesstoken"]
+        print(f"DEBUG: Access-Token erhalten: {accesstoken}")
     except Exception as e:
+        print(f"ERROR: Fehler beim Access-Token: {e}")
         raise HTTPException(status_code=500, detail=f"Tokenfehler: {str(e)}")
 
     login_payload = {
@@ -174,38 +181,50 @@ def import_users_from_vereinsflieger(db: Session = Depends(get_db)):
         "cid": cid
     }
 
+    print("DEBUG: Sende Login-Request...")
     signin = requests.post(f"{base_url}/auth/signin", data=login_payload)
+    print(f"DEBUG: Login-Response-Code: {signin.status_code}")
     if signin.status_code != 200:
+        print(f"ERROR: Anmeldung fehlgeschlagen: {signin.text}")
         raise HTTPException(status_code=401, detail=f"Anmeldung fehlgeschlagen: {signin.text}")
 
+    print("DEBUG: Hole Mitgliederliste...")
     member_response = requests.post(f"{base_url}/user/list", data={"accesstoken": accesstoken})
+    print(f"DEBUG: Mitgliederliste-Response-Code: {member_response.status_code}")
     if member_response.status_code != 200:
         raise HTTPException(status_code=500, detail="Mitgliederliste konnte nicht geladen werden")
 
     try:
-        members = member_response.json()
+        raw_data = member_response.json()
+        print(f"DEBUG: JSON-Typ: {type(raw_data)}")
+        if not isinstance(raw_data, dict):
+            raise HTTPException(status_code=500, detail="Mitgliederliste ist kein Dictionary")
+        members = list(raw_data.values())
+        print(f"DEBUG: Mitglieder extrahiert: {len(members)}")
     except Exception as e:
+        print(f"ERROR: JSON-Parsing: {e}")
         raise HTTPException(status_code=500, detail=f"JSON-Fehler in Mitgliederliste: {e}")
-
-    if not isinstance(members, list):
-        raise HTTPException(status_code=500, detail="Unerwartete Antwortstruktur – 'members' ist kein Array.")
 
     created_users = []
     for m in members:
         if not isinstance(m, dict):
+            print("WARN: Mitglied ist kein dict - übersprungen.")
             continue
+
+        print(f"DEBUG: Verarbeite Mitglied: {m.get('firstname', '')} {m.get('lastname', '')}")
 
         roles = m.get("roles", [])
         if not isinstance(roles, list) or "VereinsKantine" not in roles:
+            print("DEBUG: Rolle 'VereinsKantine' fehlt - übersprungen.")
             continue
 
         firstname = m.get("firstname", "").strip()
         lastname = m.get("lastname", "").strip()
         if not firstname or not lastname:
+            print("DEBUG: Fehlender Vor-/Nachname - übersprungen.")
             continue
 
         username = f"{firstname} {lastname}"
-
 
         rfid = None
         key_entries = m.get("keymanagement", [])
@@ -215,22 +234,28 @@ def import_users_from_vereinsflieger(db: Session = Depends(get_db)):
                     rfid_candidate = key.get("keyname") or key.get("rfidkey")
                     if rfid_candidate and str(rfid_candidate).strip():
                         rfid = str(rfid_candidate).strip()
+                        print(f"DEBUG: RFID gefunden für {username}: {rfid}")
                         break
 
         if not rfid:
+            print(f"DEBUG: Kein gültiger 'Schlüssel 2' für {username} - übersprungen.")
             continue
 
         if db.query(models.User).filter_by(username=username).first():
-            continue
+            print(f"DEBUG: Benutzer {username} existiert bereits - übersprungen.")
+            continue  # <== fehlt aktuell!
 
+        print(f"DEBUG: Benutzer wird hinzugefügt: {username}")
         user = models.User(username=username, rfid=rfid, password=None)
         db.add(user)
         created_users.append(username)
 
     try:
         db.commit()
+        print(f"DEBUG: Datenbank-Commit erfolgreich - {len(created_users)} Nutzer importiert.")
     except Exception as e:
         db.rollback()
+        print("ERROR: Datenbankfehler beim Commit")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Datenbankfehler: {str(e)}")
@@ -239,52 +264,105 @@ def import_users_from_vereinsflieger(db: Session = Depends(get_db)):
 
 @app.post("/sync/articles")
 def sync_articles_from_vereinsflieger(db: Session = Depends(get_db)):
-    
+    print("DEBUG: Starte Artikel-Synchronisation...")
+
     base_url = "https://www.vereinsflieger.de/interface/rest"
     username = os.getenv("VFL_USERNAME")
     password = os.getenv("VFL_PASSWORD")
     appkey = os.getenv("VFL_APPKEY")
-    cid = os.getenv("VFL_CID")    
-    
-    r = requests.get(f"{base_url}/auth/accesstoken")
-    r.raise_for_status()
-    accesstoken = r.json()["accesstoken"]
+    cid = os.getenv("VFL_CID")
+    account = os.getenv("VFL_ACC")
 
-    payload = {
+    print(f"DEBUG: env geladen: USER={username}, CID={cid}, APPKEY={appkey}")
+
+    if not all([username, password, appkey, cid]):
+        print("ERROR: Fehlende Umgebungsvariablen")
+        raise HTTPException(status_code=500, detail="Fehlende .env-Werte")
+
+    try:
+        print("DEBUG: Fordere Access-Token an...")
+        r = requests.get(f"{base_url}/auth/accesstoken")
+        r.raise_for_status()
+        accesstoken = r.json()["accesstoken"]
+        print(f"DEBUG: Access-Token erhalten: {accesstoken}")
+    except Exception as e:
+        print(f"ERROR: Fehler beim Access-Token: {e}")
+        raise HTTPException(status_code=500, detail=f"Tokenfehler: {str(e)}")
+
+    login_payload = {
         "accesstoken": accesstoken,
         "username": username,
         "password": hashlib.md5(password.encode()).hexdigest(),
         "appkey": appkey,
         "cid": cid
     }
-    r = requests.post(f"{base_url}/auth/signin", data=payload)
-    if r.status_code != 200:
+
+    print("DEBUG: Sende Login-Request...")
+    signin = requests.post(f"{base_url}/auth/signin", data=login_payload)
+    print(f"DEBUG: Login-Response-Code: {signin.status_code}")
+    if signin.status_code != 200:
+        print(f"ERROR: Anmeldung fehlgeschlagen: {signin.text}")
         raise HTTPException(status_code=403, detail="Anmeldung fehlgeschlagen")
 
+    print("DEBUG: Hole Artikelliste...")
     r = requests.post(f"{base_url}/articles/list", data={"accesstoken": accesstoken})
+    print(f"DEBUG: Artikel-Response-Code: {r.status_code}")
     if r.status_code != 200:
         raise HTTPException(status_code=500, detail="Fehler beim Abrufen der Artikel")
-    articles = r.json()
+
+    try:
+        articles_raw = r.json()
+        print(f"DEBUG: JSON-Typ der Antwort: {type(articles_raw)}")
+
+        if isinstance(articles_raw, dict):
+            if "articles" in articles_raw:
+                articles = articles_raw["articles"]
+                print(f"DEBUG: {len(articles)} Artikel im 'articles'-Key gefunden.")
+            else:
+                articles = [v for v in articles_raw.values() if isinstance(v, dict) and "designation" in v]
+                print(f"DEBUG: {len(articles)} Artikel aus dict-Werten extrahiert.")
+        elif isinstance(articles_raw, list):
+            articles = articles_raw
+            print(f"DEBUG: Antwort ist eine Liste mit {len(articles)} Artikeln.")
+        else:
+            raise ValueError(f"Unerwartete Struktur: {type(articles_raw)}")
+
+    except Exception as e:
+        print(f"ERROR: JSON-Verarbeitung fehlgeschlagen: {e}")
+        raise HTTPException(status_code=500, detail=f"Fehler beim Verarbeiten der Artikeldaten: {e}")
 
     synced_count = 0
     for art in articles:
-        if art.get("costtype") != "08800":
+        if not isinstance(art, dict):
+            print(f"WARN: Artikel ist kein dict: {art} - übersprungen.")
             continue
+
+        print(f"DEBUG: Verarbeite Artikel: {art.get('designation')} (ID: {art.get('articleid')})")
+
+        if art.get("account") != account:
+            print(f"DEBUG: Sachkonto {art.get('account')} ist nicht {account} - übersprungen.")
+            continue
+
         name = art.get("designation")
         category = art.get("description")
+        
         try:
             price = art["prices"][0]["unitprice"]
-        except (IndexError, KeyError):
+        except (IndexError, KeyError, TypeError) as e:
+            print(f"WARN: Preisfehler bei {name}: {e} - übersprungen.")
             continue
 
         existing = db.query(Product).filter_by(name=name).first()
         if existing:
+            print(f"DEBUG: Aktualisiere bestehenden Artikel: {name}")
             existing.price = price
             existing.category = category
         else:
+            print(f"DEBUG: Neuer Artikel wird hinzugefügt: {name}")
             db.add(Product(name=name, price=price, category=category))
+
         synced_count += 1
 
     db.commit()
+    print(f"DEBUG: Artikel-Synchronisation abgeschlossen - {synced_count} Artikel aktualisiert oder hinzugefügt.")
     return {"message": f"{synced_count} Artikel synchronisiert."}
-
