@@ -426,29 +426,49 @@ const addProduct = async () => {
         </>
       )}
 
-      {editingProduct && (
+{editingProduct && (
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div className="bg-white p-6 rounded shadow max-w-md w-full">
+    <div className="bg-white p-6 rounded shadow-lg max-w-md w-full">
       <h3 className="text-xl font-semibold mb-4 text-center">Produkt bearbeiten</h3>
       <div className="grid gap-2">
-        <input value={editName} onChange={(e) => setEditName(e.target.value)} className="p-2 border rounded" />
-        <input value={editPrice} onChange={(e) => setEditPrice(e.target.value)} className="p-2 border rounded" />
-        <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="p-2 border rounded">
+        <input
+          value={editName}
+          onChange={(e) => setEditName(e.target.value)}
+          className="p-2 border rounded"
+        />
+        <input
+          value={editPrice}
+          onChange={(e) => setEditPrice(e.target.value)}
+          className="p-2 border rounded"
+        />
+        <select
+          value={editCategory}
+          onChange={(e) => setEditCategory(e.target.value)}
+          className="p-2 border rounded"
+        >
           <option value="">Kategorie wählen</option>
           <option value="Getränke">Getränke</option>
           <option value="Snacks">Snacks</option>
           <option value="Eis">Eis</option>
         </select>
         <div className="flex justify-end gap-2">
-          <button onClick={saveProductEdit} className="bg-blue-500 text-white px-4 py-2 rounded">Speichern</button>
-          <button onClick={() => setEditingProduct(null)} className="bg-gray-300 px-4 py-2 rounded">Abbrechen</button>
+          <button
+            onClick={saveProductEdit}
+            className="bg-green-600 text-white px-4 py-2 rounded"
+          >
+            Speichern
+          </button>
+          <button
+            onClick={() => setEditingProduct(null)}
+            className="bg-gray-400 px-4 py-2 rounded"
+          >
+            Abbrechen
+          </button>
         </div>
       </div>
     </div>
   </div>
 )}
-
-
       {view === "transactions" && (
         <>
           <div className="grid gap-4 p-4">
@@ -528,24 +548,49 @@ const addProduct = async () => {
           </div>
         </>
       )}
-      {editingUser && (
+{editingUser && (
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div className="bg-white p-6 rounded shadow max-w-md w-full">
+    <div className="bg-white p-6 rounded shadow-lg max-w-md w-full">
       <h3 className="text-xl font-semibold mb-4 text-center">Benutzer bearbeiten</h3>
       <div className="grid gap-2">
-        <input className="p-2 border rounded" placeholder="Benutzername" value={editUsername} onChange={(e) => setEditUsername(e.target.value)} />
-        <input className="p-2 border rounded" placeholder="RFID" value={editRfid} onChange={(e) => setEditRfid(e.target.value)} />
-        <input className="p-2 border rounded" type="password" placeholder="Neues Passwort" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} />
+        <input
+          className="p-2 border rounded"
+          placeholder="Benutzername"
+          value={editUsername}
+          onChange={(e) => setEditUsername(e.target.value)}
+        />
+        <input
+          className="p-2 border rounded"
+          placeholder="RFID"
+          value={editRfid}
+          onChange={(e) => setEditRfid(e.target.value)}
+        />
+        <input
+          className="p-2 border rounded"
+          type="password"
+          placeholder="Neues Passwort"
+          value={editPassword}
+          onChange={(e) => setEditPassword(e.target.value)}
+        />
         <div className="flex justify-end gap-2">
-          <button onClick={saveUserEdit} className="bg-blue-500 text-white px-4 py-2 rounded">Speichern</button>
-          <button onClick={() => setEditingUser(null)} className="bg-gray-300 px-4 py-2 rounded">Abbrechen</button>
+          <button
+            onClick={saveUserEdit}
+            className="bg-green-600 text-white px-4 py-2 rounded"
+          >
+            Speichern
+          </button>
+          <button
+            onClick={() => setEditingUser(null)}
+            className="bg-gray-400 px-4 py-2 rounded"
+          >
+            Abbrechen
+          </button>
         </div>
       </div>
     </div>
   </div>
 )}
     </div>
-    
-  );
+    );
   
 }

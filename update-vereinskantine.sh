@@ -25,7 +25,7 @@ echo "💾 Sichere .env und kantine.db..."
 ENV_BACKUP="/tmp/vereinskantine_env_backup"
 DB_BACKUP="/tmp/vereinskantine_db_backup"
 
-[ -f "$TARGET_DIR/Backend/.env" ] && cp "$TARGET_DIR/Backend/.env" "$ENV_BACKUP"
+[ -f "$TARGET_DIR/.env" ] && cp "$TARGET_DIR/.env" "$ENV_BACKUP"
 [ -f "$TARGET_DIR/kantine.db" ] && cp "$TARGET_DIR/kantine.db" "$DB_BACKUP"
 
 # Vorheriges Verzeichnis löschen
@@ -58,7 +58,7 @@ fi
 
 
 echo "♻️ Stelle .env und kantine.db wieder her..."
-[ -f "$ENV_BACKUP" ] && cp "$ENV_BACKUP" "$TARGET_DIR/Backend/.env"
+[ -f "$ENV_BACKUP" ] && cp "$ENV_BACKUP" "$TARGET_DIR/.env"
 [ -f "$DB_BACKUP" ] && cp "$DB_BACKUP" "$TARGET_DIR/kantine.db"
 
 
