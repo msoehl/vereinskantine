@@ -349,6 +349,11 @@ const addProduct = async () => {
     setConfirmPassword("");
   };
 
+  const getUsernameById = (id) => {
+    const user = users.find(u => u.id === id);
+    return user ? user.username : `#${id}`;
+  };
+
   useEffect(() => {
     if (loggedIn) {
       fetchProducts();
@@ -491,7 +496,7 @@ const addProduct = async () => {
                   {Array.isArray(transactions) && transactions.map(t => (
                     <tr key={t.id}>
                       <td>{t.id}</td>
-                      <td>{t.user_id}</td>
+                      <td>{getUsernameById(t.user_id)}</td>
                       <td>{t.items.map(i => `${i.product_name} (€${i.price.toFixed(2)})`).join(", ")}</td>
                       <td>{t.total.toFixed(2)} €</td>
                       <td>{new Date(t.timestamp).toLocaleString()}</td>
@@ -557,7 +562,7 @@ const addProduct = async () => {
             <div className="grid gap-2">
               <input className="p-2 border rounded" placeholder="Benutzername" value={editUsername} onChange={(e) => setEditUsername(e.target.value)} />
               <input className="p-2 border rounded" placeholder="RFID" value={editRfid} onChange={(e) => setEditRfid(e.target.value)} />
-              <input className="p-2 border rounded" placeholder="VF UID" value={editVfuid} onChange={(e) => setEditVfuid(e.target.value)} />
+              <input className="p-2 border rounded" placeholder="VF UID" value={editvfuid} onChange={(e) => setEditVfuid(e.target.value)} />
               <input className="p-2 border rounded" type="password" placeholder="Neues Passwort" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} />
               <div className="modal-buttons">
                 <button onClick={saveUserEdit}>Speichern</button>
