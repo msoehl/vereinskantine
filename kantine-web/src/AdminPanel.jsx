@@ -414,8 +414,8 @@ const addProduct = async () => {
                       <td>{prod.price.toFixed(2)} €</td>
                       <td>{prod.category}</td>
                       <td className="space-x-2">
-                      <button onClick={() => startEditProduct(prod)} className="bg-yellow-400 px-2 py-1 rounded">Bearbeiten</button>
-                      <button onClick={() => deleteProduct(prod.id)} className="bg-red-500 text-white px-2 py-1 rounded">Löschen</button>
+                      <button onClick={() => startEditProduct(prod)} className="button-group">Bearbeiten</button>
+                      <button onClick={() => deleteProduct(prod.id)} className="button-group">Löschen</button>
                       </td>
                     </tr>
                   ))}
@@ -454,13 +454,13 @@ const addProduct = async () => {
               <div className="flex justify-end gap-2">
                 <button
                   onClick={saveProductEdit}
-                  className="bg-green-600 text-white px-4 py-2 rounded"
+                  className="button-group"
                 >
                   Speichern
                 </button>
                 <button
                   onClick={() => setEditingProduct(null)}
-                  className="bg-gray-400 px-4 py-2 rounded"
+                  className="button-group"
                 >
                   Abbrechen
                 </button>
@@ -537,8 +537,8 @@ const addProduct = async () => {
                       <td>{u.username}</td>
                       <td>{u.rfid}</td>
                       <td className="space-x-2">
-                      <button onClick={() => startEditUser(u)} className="bg-yellow-400 px-2 py-1 rounded">Bearbeiten</button>
-                      <button onClick={() => deleteUser(u.id)} className="bg-red-500 text-white px-2 py-1 rounded">Löschen</button>
+                      <button onClick={() => startEditUser(u)} className="button-group">Bearbeiten</button>
+                      <button onClick={() => deleteUser(u.id)} className="button-group">Löschen</button>
                       </td>
                     </tr>
                   ))}
@@ -557,8 +557,8 @@ const addProduct = async () => {
               <input className="p-2 border rounded" placeholder="RFID" value={editRfid} onChange={(e) => setEditRfid(e.target.value)} />
               <input className="p-2 border rounded" type="password" placeholder="Neues Passwort" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} />
               <div className="flex justify-end gap-2">
-                <button onClick={saveUserEdit} className="bg-green-600 text-white px-4 py-2 rounded">Speichern</button>
-                <button onClick={() => setEditingUser(null)} className="bg-gray-400 px-4 py-2 rounded">Abbrechen</button>
+                <button onClick={saveUserEdit} className="button-group">Speichern</button>
+                <button onClick={() => setEditingUser(null)} className="button-group">Abbrechen</button>
               </div>
             </div>
           </div>
