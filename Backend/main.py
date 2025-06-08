@@ -225,6 +225,13 @@ def import_users_from_vereinsflieger(db: Session = Depends(get_db)):
             continue
 
         username = f"{firstname} {lastname}"
+        
+        uid = m.get("uid")
+        print(f"DEBUG: UID aus API: {uid}")
+
+        if not uid:
+            print(f"DEBUG: Kein UID gefunden für {username} - übersprungen.")
+            continue    
 
         rfid = None
         key_entries = m.get("keymanagement", [])
@@ -244,9 +251,10 @@ def import_users_from_vereinsflieger(db: Session = Depends(get_db)):
         if db.query(models.User).filter_by(username=username).first():
             print(f"DEBUG: Benutzer {username} existiert bereits - übersprungen.")
             continue  # <== fehlt aktuell!
-
+        
+        print(f"DEBUG: UID aus API: {m.get('uid')}")    
         print(f"DEBUG: Benutzer wird hinzugefügt: {username}")
-        user = models.User(username=username, rfid=rfid, password=None)
+        user = models.User(username=username, rfid=rfid, password=None, vf_uid=m.get("uid"))
         db.add(user)
         created_users.append(username)
 

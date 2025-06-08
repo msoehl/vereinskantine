@@ -56,5 +56,6 @@ class UserOut(BaseModel):
     id: int
     username: str
     rfid: str
+    vf_uid: int
     class Config:
         from_attributes = True

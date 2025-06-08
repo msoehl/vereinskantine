@@ -35,3 +35,4 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     rfid = Column(String, unique=True, index=True, nullable=True)
     password = Column(String, nullable=True)
+    vf_uid = Column(Integer, unique=True, nullable=True)
