@@ -413,9 +413,11 @@ const addProduct = async () => {
                       <td>{prod.name}</td>
                       <td>{prod.price.toFixed(2)} €</td>
                       <td>{prod.category}</td>
-                      <td className="space-x-2">
-                      <button onClick={() => startEditProduct(prod)} className="button-group">Bearbeiten</button>
-                      <button onClick={() => deleteProduct(prod.id)} className="button-group">Löschen</button>
+                      <td>
+                      <div className="button-group">
+                        <button onClick={() => startEditProduct(prod)} className="bg-yellow-400 px-2 py-1 rounded">Bearbeiten</button>
+                        <button onClick={() => deleteProduct(prod.id)} className="bg-red-500 text-white px-2 py-1 rounded">Löschen</button>
+                      </div>
                       </td>
                     </tr>
                   ))}
@@ -451,19 +453,9 @@ const addProduct = async () => {
                 <option value="Snacks">Snacks</option>
                 <option value="Eis">Eis</option>
               </select>
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={saveProductEdit}
-                  className="button-group"
-                >
-                  Speichern
-                </button>
-                <button
-                  onClick={() => setEditingProduct(null)}
-                  className="button-group"
-                >
-                  Abbrechen
-                </button>
+              <div className="modal-buttons">
+                <button onClick={saveProductEdit}>Speichern</button>
+                <button onClick={() => setEditingProduct(null)}>Abbrechen</button>
               </div>
             </div>
           </div>
@@ -536,9 +528,11 @@ const addProduct = async () => {
                       <td>{u.id}</td>
                       <td>{u.username}</td>
                       <td>{u.rfid}</td>
-                      <td className="space-x-2">
-                      <button onClick={() => startEditUser(u)} className="button-group">Bearbeiten</button>
-                      <button onClick={() => deleteUser(u.id)} className="button-group">Löschen</button>
+                      <td>
+                      <div className="button-group">
+                        <button onClick={() => startEditUser(u)} className="bg-yellow-400 px-2 py-1 rounded">Bearbeiten</button>
+                        <button onClick={() => deleteUser(u)} className="bg-red-500 text-white px-2 py-1 rounded">Löschen</button>
+                      </div>
                       </td>
                     </tr>
                   ))}
@@ -556,9 +550,9 @@ const addProduct = async () => {
               <input className="p-2 border rounded" placeholder="Benutzername" value={editUsername} onChange={(e) => setEditUsername(e.target.value)} />
               <input className="p-2 border rounded" placeholder="RFID" value={editRfid} onChange={(e) => setEditRfid(e.target.value)} />
               <input className="p-2 border rounded" type="password" placeholder="Neues Passwort" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} />
-              <div className="flex justify-end gap-2">
-                <button onClick={saveUserEdit} className="button-group">Speichern</button>
-                <button onClick={() => setEditingUser(null)} className="button-group">Abbrechen</button>
+              <div className="modal-buttons">
+                <button onClick={saveUserEdit}>Speichern</button>
+                <button onClick={() => setEditingUser(null)}>Abbrechen</button>
               </div>
             </div>
           </div>

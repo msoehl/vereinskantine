@@ -137,9 +137,14 @@ table th {
   max-width: 400px;
 }
 
+.modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .button-group {
   display: flex;
   gap: 8px;
-  background-color: #28a745;
-  color: white;
+  align-items: center;
 }
