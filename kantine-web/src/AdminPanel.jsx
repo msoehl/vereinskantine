@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-function Login({ setLoggedIn }) {
+function Login({ setLoggedIn, setView }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -22,6 +22,7 @@ function Login({ setLoggedIn }) {
       localStorage.setItem("loggedIn", "true");
       localStorage.setItem("currentUser", username);
       setLoggedIn(true);
+      setView("products")
     } else {
       setError("Falscher Benutzername oder Passwort.");
     }
@@ -394,7 +395,7 @@ const addProduct = async () => {
     }
   }, [loggedIn]);
 
-  if (!loggedIn) return <Login setLoggedIn={setLoggedIn} />;
+  if (!loggedIn) return <Login setLoggedIn={setLoggedIn} setView={setView} />;
 
   return (
     <div className="grid gap-4 p-4">
@@ -536,7 +537,7 @@ const addProduct = async () => {
             <div className="flex justify-between items-center">
               <h1 className="text-2xl font-bold">Transaktionen</h1>
               <button onClick={exportTransactions}>CSV exportieren</button>
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center gap-6 mb-4">
               <label htmlFor="month" className="font-semibold">Monat wählen:</label>
               <input
                 id="month"

@@ -399,12 +399,13 @@ class KantinenUI(App):
         self.items = []
         self.item_counts = {} 
         self.total = 0.0
-        self.update_summary()
         self.load_products_from_backend()
         self.load_users()
         self.load_products()
         self.user_id = None
         self.user_name = None
+        self.header.text = "Willkommen!"
+        self.update_summary()
         self.show_rfid_popup()
 
     def update_summary(self):

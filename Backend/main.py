@@ -35,6 +35,53 @@ def read_status():
 
 models.Base.metadata.create_all(bind=engine)
 
+def get_vfl_token():
+    base_url = "https://www.vereinsflieger.de/interface/rest"
+    username = os.getenv("VFL_USERNAME")
+    password = os.getenv("VFL_PASSWORD")
+    appkey = os.getenv("VFL_APPKEY")
+    cid = os.getenv("VFL_CID")
+
+    print("🔑 [DEBUG] Lade VFL-Umgebungsvariablen...")
+    if not all([username, password, appkey, cid]):
+        raise Exception("❌ [ERROR] Fehlende Vereinsflieger-Zugangsdaten (.env)")
+
+    try:
+        print("🔐 [DEBUG] Fordere Access-Token an...")
+        r = requests.get(f"{base_url}/auth/accesstoken")
+        r.raise_for_status()
+        token = r.json().get("accesstoken")
+        if not token:
+            raise Exception("❌ [ERROR] Kein Access-Token erhalten")
+        print(f"✅ [DEBUG] Access-Token erhalten: {token}")
+    except Exception as e:
+        print(f"❌ [ERROR] Fehler beim Abrufen des Tokens: {e}")
+        raise
+
+    login_payload = {
+        "accesstoken": token,
+        "username": username,
+        "password": hashlib.md5(password.encode()).hexdigest(),
+        "appkey": appkey,
+        "cid": cid
+    }
+
+    try:
+        print("🔓 [DEBUG] Sende Login-Daten...")
+        signin = requests.post(f"{base_url}/auth/signin", data=login_payload)
+        print(f"🔄 [DEBUG] Login-Response-Code: {signin.status_code}")
+        if signin.status_code != 200:
+            raise Exception(f"❌ [ERROR] Vereinsflieger-Login fehlgeschlagen: {signin.text}")
+        
+        signin_data = signin.json()
+        updated_token = signin_data.get("accesstoken", token)
+        print(f"✅ [DEBUG] Login erfolgreich – verwendeter Token: {updated_token}")
+    except Exception as e:
+        print(f"❌ [ERROR] Fehler beim Login: {e}")
+        raise
+
+    return updated_token
+
 @app.post("/vfl-settings")
 def set_vfl_enabled(setting: dict):
     with open("settings.json", "w") as f:
@@ -88,7 +135,7 @@ def get_transactions(db: Session = Depends(get_db)):
 
 @app.post("/transaction")
 def create_transaction(trans: schemas.TransactionIn, db: Session = Depends(get_db)):
-    vflEnabled = getattr(trans, "use_vfl", False)
+    vflEnabled = trans.vfl_enabled
     from datetime import datetime
     import os
     import requests
@@ -109,6 +156,14 @@ def create_transaction(trans: schemas.TransactionIn, db: Session = Depends(get_d
         vf_uid = None
         print("⚠️ [WARNUNG] Kein Benutzer gefunden – Vereinsflieger-Verkauf wird übersprungen")
 
+    accesstoken = None
+    if vflEnabled and vf_uid:
+        accesstoken = get_vfl_token()
+        if not accesstoken:
+            print("❌ [ERROR] Kein gültiger Access-Token erhalten – VFL-Export wird deaktiviert.")
+            vflEnabled = False
+
+    
     for item in trans.items:
         print(f"➕ [DEBUG] Artikel {item.product_name} (ID {item.product_id}) wird gespeichert")
         db_item = TransactionItem(
@@ -125,11 +180,11 @@ def create_transaction(trans: schemas.TransactionIn, db: Session = Depends(get_d
                 product = db.query(models.Product).filter(models.Product.id == item.product_id).first()
                 price = product.price if product else item.price
                 salestax = product.salestax if product and product.salestax is not None else float(os.getenv("VFL_TAX_RATE", 7))
-                amount = item.amount if hasattr(item, "amount") else 1
+                amount = item.amount
                 articleid = product.vfl_articleid if product and product.vfl_articleid else str(item.product_id)
 
                 payload = {
-                    "accesstoken": os.getenv("VFL_ACCESS_TOKEN"),
+                    "accesstoken": accesstoken,
                     "bookingdate": datetime.utcnow().date().isoformat(),
                     "articleid": articleid,
                     "amount": amount, 
@@ -216,6 +271,7 @@ def import_users_from_vereinsflieger(db: Session = Depends(get_db)):
     password = os.getenv("VFL_PASSWORD")
     appkey = os.getenv("VFL_APPKEY")
     cid = os.getenv("VFL_CID")
+
     print(f"DEBUG: env geladen: USER={username}, CID={cid}, APPKEY={appkey}")
 
     if not all([username, password, appkey, cid]):
@@ -224,9 +280,7 @@ def import_users_from_vereinsflieger(db: Session = Depends(get_db)):
 
     try:
         print("DEBUG: Fordere Access-Token an...")
-        r = requests.get(f"{base_url}/auth/accesstoken")
-        r.raise_for_status()
-        accesstoken = r.json()["accesstoken"]
+        accesstoken= get_vfl_token()
         print(f"DEBUG: Access-Token erhalten: {accesstoken}")
     except Exception as e:
         print(f"ERROR: Fehler beim Access-Token: {e}")
@@ -332,45 +386,11 @@ def import_users_from_vereinsflieger(db: Session = Depends(get_db)):
 @app.post("/sync/articles")
 def sync_articles_from_vereinsflieger(db: Session = Depends(get_db)):
     print("DEBUG: Starte Artikel-Synchronisation...")
-
+    
     base_url = "https://www.vereinsflieger.de/interface/rest"
-    username = os.getenv("VFL_USERNAME")
-    password = os.getenv("VFL_PASSWORD")
-    appkey = os.getenv("VFL_APPKEY")
-    cid = os.getenv("VFL_CID")
     account = os.getenv("VFL_ACC")
-
-    print(f"DEBUG: env geladen: USER={username}, CID={cid}, APPKEY={appkey}")
-
-    if not all([username, password, appkey, cid]):
-        print("ERROR: Fehlende Umgebungsvariablen")
-        raise HTTPException(status_code=500, detail="Fehlende .env-Werte")
-
-    try:
-        print("DEBUG: Fordere Access-Token an...")
-        r = requests.get(f"{base_url}/auth/accesstoken")
-        r.raise_for_status()
-        accesstoken = r.json()["accesstoken"]
-        print(f"DEBUG: Access-Token erhalten: {accesstoken}")
-    except Exception as e:
-        print(f"ERROR: Fehler beim Access-Token: {e}")
-        raise HTTPException(status_code=500, detail=f"Tokenfehler: {str(e)}")
-
-    login_payload = {
-        "accesstoken": accesstoken,
-        "username": username,
-        "password": hashlib.md5(password.encode()).hexdigest(),
-        "appkey": appkey,
-        "cid": cid
-    }
-
-    print("DEBUG: Sende Login-Request...")
-    signin = requests.post(f"{base_url}/auth/signin", data=login_payload)
-    print(f"DEBUG: Login-Response-Code: {signin.status_code}")
-    if signin.status_code != 200:
-        print(f"ERROR: Anmeldung fehlgeschlagen: {signin.text}")
-        raise HTTPException(status_code=403, detail="Anmeldung fehlgeschlagen")
-
+    accesstoken = get_vfl_token()
+    
     print("DEBUG: Hole Artikelliste...")
     r = requests.post(f"{base_url}/articles/list", data={"accesstoken": accesstoken})
     print(f"DEBUG: Artikel-Response-Code: {r.status_code}")
