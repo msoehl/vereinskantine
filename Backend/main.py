@@ -150,7 +150,14 @@ def create_transaction(trans: schemas.TransactionIn, db: Session = Depends(get_d
     print(f"[DEBUG] Transaktion ID {db_trans.id} gespeichert")
 
     db_user = db.query(models.User).filter(models.User.id == trans.user_id).first()
-    vf_memberid = db_user.vf_memberid if db_user else None
+    
+    if db_user and db_user.username == "Gästeverkauf":
+        gast_user = db.query(models.User).filter(models.User.username == "Gästeverkauf").first()
+        vf_memberid = gast_user.vf_memberid if gast_user else None
+        print(f"[DEBUG] Gästeverkauf wird unter vf_memberid={vf_memberid} gebucht")
+    else:
+        vf_memberid = db_user.vf_memberid if db_user else None
+
     if vf_memberid:
         print(f"[DEBUG] Benutzer {db_user.username} mit vf_memberid={vf_memberid} gefunden")
     else:
@@ -161,11 +168,11 @@ def create_transaction(trans: schemas.TransactionIn, db: Session = Depends(get_d
         print("[ERROR] Kein gültiger Access-Token erhalten – VFL-Export wird deaktiviert.")
         vflEnabled = False
 
-    # 🧮 Produkte nach ID aggregieren
+    
     item_map = defaultdict(lambda: {"amount": 0, "item": None})
     for item in trans.items:
         item_map[item.product_id]["amount"] += item.amount
-        item_map[item.product_id]["item"] = item  # nur letzter relevant für Metadaten
+        item_map[item.product_id]["item"] = item
 
     for product_id, data in item_map.items():
         item = data["item"]

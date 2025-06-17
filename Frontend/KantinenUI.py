@@ -95,18 +95,7 @@ class KantinenUI(App):
         )
         change_user_btn.bind(on_press=lambda instance: self.show_rfid_popup())
 
-        guest_btn = Button(
-            text="Gastverkauf starten",
-            size_hint=(1, None),
-            height=50,
-            background_color=(0.1, 0.5, 0.1, 1),
-            color=(1, 1, 1, 1),
-            font_size='16sp'
-        )
-        guest_btn.bind(on_press=self.set_guest_user)
-
         top_buttons.add_widget(change_user_btn)
-        top_buttons.add_widget(guest_btn)
         right_area.add_widget(top_buttons)
 
         self.summary = Label(
@@ -153,7 +142,6 @@ class KantinenUI(App):
             print("Fehler beim Abrufen der Nutzer:", e)
     
     def set_guest_user(self, *args):
-        self.user_id = 9999
         self.user_name = "Gast"
         self.items = []
         self.item_counts = {}
@@ -178,6 +166,7 @@ class KantinenUI(App):
             font_size='18sp'
         )
         ok_button = Button(text="OK", size_hint=(1, None), height=44)
+        
         layout.add_widget(spinner)
         layout.add_widget(ok_button)
 
@@ -220,15 +209,17 @@ class KantinenUI(App):
         layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
         self.rfid_status = Label(text="Bitte RFID scannen...", font_size='20sp')
         manual_button = Button(text="Manuell einloggen", size_hint=(1, None), height=44)
+        guest_button = Button(text="Gastverkauf starten", size_hint=(1, None), height=44)
 
         layout.add_widget(self.rfid_status)
         layout.add_widget(manual_button)
+        layout.add_widget(guest_button)
 
         self.rfid_popup = Popup(
             title='RFID Login',
             content=layout,
             size_hint=(None, None),
-            size=(400, 200),
+            size=(600, 270),
             auto_dismiss=False
         )
 
@@ -236,7 +227,13 @@ class KantinenUI(App):
             self.rfid_popup.dismiss()
             self.select_user_popup()
 
+        def guest_login(instance):
+            self.rfid_popup.dismiss()
+            Window.unbind(on_key_down=self.handle_rfid_key)
+            self.set_guest_user
+
         manual_button.bind(on_press=manual_login)
+        guest_button.bind(on_press=guest_login)
         self.rfid_popup.open()
         Window.bind(on_key_down=self.handle_rfid_key)
 
@@ -284,6 +281,7 @@ class KantinenUI(App):
                 self.rfid_status_guest.text = f"Unbekannter RFID: {rfid}"
         elif codepoint:
             self.guest_rfid_buffer += codepoint
+        
 
     def reset_inactivity_timer(self, *args):
         from kivy.clock import Clock
