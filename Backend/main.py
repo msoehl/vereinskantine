@@ -183,7 +183,7 @@ def create_transaction(trans: schemas.TransactionIn, db: Session = Depends(get_d
 
         if vflEnabled and vf_memberid:
             product = db.query(models.Product).filter(models.Product.id == product_id).first()
-            price = product.price if product else item.price
+            price = item.price
             salestax = product.salestax if product and product.salestax is not None else float(os.getenv("VFL_TAX_RATE", 7))
             articleid = product.vfl_articleid if product and product.vfl_articleid else str(product_id)
 
@@ -193,8 +193,9 @@ def create_transaction(trans: schemas.TransactionIn, db: Session = Depends(get_d
                 "articleid": articleid,
                 "amount": total_amount,
                 "memberid": int(vf_memberid),
-                "comment": f"Kantine Verkauf",
+                "comment": "Kantine (Bestand - Freigetränk)" if price == 0 else "Kantine Verkauf",
                 "spid": int(os.getenv("VFL_SPHERE", 1)),
+                "totalprice": price * total_amount,
                 "salestax": salestax
             }
 
