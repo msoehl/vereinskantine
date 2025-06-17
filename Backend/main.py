@@ -42,20 +42,20 @@ def get_vfl_token():
     appkey = os.getenv("VFL_APPKEY")
     cid = os.getenv("VFL_CID")
 
-    print("🔑 [DEBUG] Lade VFL-Umgebungsvariablen...")
+    print("[DEBUG] Lade VFL-Umgebungsvariablen...")
     if not all([username, password, appkey, cid]):
-        raise Exception("❌ [ERROR] Fehlende Vereinsflieger-Zugangsdaten (.env)")
+        raise Exception("[ERROR] Fehlende Vereinsflieger-Zugangsdaten (.env)")
 
     try:
-        print("🔐 [DEBUG] Fordere Access-Token an...")
+        print("[DEBUG] Fordere Access-Token an...")
         r = requests.get(f"{base_url}/auth/accesstoken")
         r.raise_for_status()
         token = r.json().get("accesstoken")
         if not token:
-            raise Exception("❌ [ERROR] Kein Access-Token erhalten")
-        print(f"✅ [DEBUG] Access-Token erhalten: {token}")
+            raise Exception("[ERROR] Kein Access-Token erhalten")
+        print(f"[DEBUG] Access-Token erhalten: {token}")
     except Exception as e:
-        print(f"❌ [ERROR] Fehler beim Abrufen des Tokens: {e}")
+        print(f"[ERROR] Fehler beim Abrufen des Tokens: {e}")
         raise
 
     login_payload = {
@@ -67,17 +67,17 @@ def get_vfl_token():
     }
 
     try:
-        print("🔓 [DEBUG] Sende Login-Daten...")
+        print("[DEBUG] Sende Login-Daten...")
         signin = requests.post(f"{base_url}/auth/signin", data=login_payload)
-        print(f"🔄 [DEBUG] Login-Response-Code: {signin.status_code}")
+        print(f"[DEBUG] Login-Response-Code: {signin.status_code}")
         if signin.status_code != 200:
-            raise Exception(f"❌ [ERROR] Vereinsflieger-Login fehlgeschlagen: {signin.text}")
+            raise Exception(f"[ERROR] Vereinsflieger-Login fehlgeschlagen: {signin.text}")
         
         signin_data = signin.json()
         updated_token = signin_data.get("accesstoken", token)
-        print(f"✅ [DEBUG] Login erfolgreich – verwendeter Token: {updated_token}")
+        print(f"[DEBUG] Login erfolgreich - verwendeter Token: {updated_token}")
     except Exception as e:
-        print(f"❌ [ERROR] Fehler beim Login: {e}")
+        print(f"[ERROR] Fehler beim Login: {e}")
         raise
 
     return updated_token
@@ -133,6 +133,8 @@ def get_transactions(db: Session = Depends(get_db)):
         })
     return result
 
+from collections import defaultdict
+
 @app.post("/transaction")
 def create_transaction(trans: schemas.TransactionIn, db: Session = Depends(get_db)):
     vflEnabled = trans.vfl_enabled
@@ -140,77 +142,74 @@ def create_transaction(trans: schemas.TransactionIn, db: Session = Depends(get_d
     import os
     import requests
 
-    print("📥 [DEBUG] Neue Transaktion wird erstellt")
+    print("[DEBUG] Neue Transaktion wird erstellt")
     db_trans = Transaction(user_id=trans.user_id, total=trans.total, timestamp=datetime.utcnow())
     db.add(db_trans)
     db.commit()
     db.refresh(db_trans)
-    print(f"✅ [DEBUG] Transaktion ID {db_trans.id} gespeichert")
+    print(f"[DEBUG] Transaktion ID {db_trans.id} gespeichert")
 
-    
     db_user = db.query(models.User).filter(models.User.id == trans.user_id).first()
-    if db_user:
-        vf_uid = db_user.vf_uid
-        print(f"👤 [DEBUG] Benutzer {db_user.username} mit vf_uid={vf_uid} gefunden")
+    vf_memberid = db_user.vf_memberid if db_user else None
+    if vf_memberid:
+        print(f"[DEBUG] Benutzer {db_user.username} mit vf_memberid={vf_memberid} gefunden")
     else:
-        vf_uid = None
-        print("⚠️ [WARNUNG] Kein Benutzer gefunden – Vereinsflieger-Verkauf wird übersprungen")
+        print("[WARNUNG] Kein Benutzer gefunden – Vereinsflieger-Verkauf wird übersprungen")
 
-    accesstoken = None
-    if vflEnabled and vf_uid:
-        accesstoken = get_vfl_token()
-        if not accesstoken:
-            print("❌ [ERROR] Kein gültiger Access-Token erhalten – VFL-Export wird deaktiviert.")
-            vflEnabled = False
+    accesstoken = get_vfl_token() if vflEnabled and vf_memberid else None
+    if vflEnabled and not accesstoken:
+        print("[ERROR] Kein gültiger Access-Token erhalten – VFL-Export wird deaktiviert.")
+        vflEnabled = False
 
-    
+    # 🧮 Produkte nach ID aggregieren
+    item_map = defaultdict(lambda: {"amount": 0, "item": None})
     for item in trans.items:
-        print(f"➕ [DEBUG] Artikel {item.product_name} (ID {item.product_id}) wird gespeichert")
+        item_map[item.product_id]["amount"] += item.amount
+        item_map[item.product_id]["item"] = item  # nur letzter relevant für Metadaten
+
+    for product_id, data in item_map.items():
+        item = data["item"]
+        total_amount = data["amount"]
+
+        print(f"[DEBUG] Artikel {item.product_name} (ID {product_id}) wird gespeichert (x{total_amount})")
         db_item = TransactionItem(
             transaction_id=db_trans.id,
-            product_id=item.product_id,
+            product_id=product_id,
             product_name=item.product_name,
             price=item.price,
-            amount=item.amount
+            amount=total_amount
         )
         db.add(db_item)
 
-        if (vflEnabled):
-            if vf_uid:
-                product = db.query(models.Product).filter(models.Product.id == item.product_id).first()
-                price = product.price if product else item.price
-                salestax = product.salestax if product and product.salestax is not None else float(os.getenv("VFL_TAX_RATE", 7))
-                amount = item.amount
-                articleid = product.vfl_articleid if product and product.vfl_articleid else str(item.product_id)
+        if vflEnabled and vf_memberid:
+            product = db.query(models.Product).filter(models.Product.id == product_id).first()
+            price = product.price if product else item.price
+            salestax = product.salestax if product and product.salestax is not None else float(os.getenv("VFL_TAX_RATE", 7))
+            articleid = product.vfl_articleid if product and product.vfl_articleid else str(product_id)
 
-                payload = {
-                    "accesstoken": accesstoken,
-                    "bookingdate": datetime.utcnow().date().isoformat(),
-                    "articleid": articleid,
-                    "amount": amount, 
-                    "memberid": vf_uid,
-                    "comment": f"Kantine Verkauf: {item.product_name}",
-                    "spid": int(os.getenv("VFL_SPHERE", 1)),
-                    #"totalprice": round(price * amount, 2), 
-                    "salestax": salestax
-                }
+            payload = {
+                "accesstoken": accesstoken,
+                "bookingdate": datetime.utcnow().date().isoformat(),
+                "articleid": articleid,
+                "amount": total_amount,
+                "memberid": int(vf_memberid),
+                "comment": f"Kantine Verkauf",
+                "spid": int(os.getenv("VFL_SPHERE", 1)),
+                "salestax": salestax
+            }
 
-                print(f"🌐 [DEBUG] Sende Verkauf an Vereinsflieger: {payload}")
-                try:
-                    vf_response = requests.post("https://www.vereinsflieger.de/interface/rest/sale/add", json=payload)
-                    print(f"📡 [DEBUG] Antwortcode: {vf_response.status_code}")
-                    if vf_response.status_code != 200:
-                        print(f"❌ [VFL-Fehler] {vf_response.text}")
-                except Exception as e:
-                    print(f"❌ [ERROR] API-Aufruf an Vereinsflieger fehlgeschlagen: {e}")
-            else:
-                print(f"⚠️ [WARNUNG] Kein vf_uid für Artikel {item.product_name} – übersprungen")
-        
+            print(f"[DEBUG] Sende Verkauf an Vereinsflieger: {payload}")
+            try:
+                vf_response = requests.post("https://www.vereinsflieger.de/interface/rest/sale/add", json=payload)
+                print(f"[DEBUG] Antwortcode: {vf_response.status_code}")
+                if vf_response.status_code != 200:
+                    print(f"[VFL-Fehler] {vf_response.text}")
+            except Exception as e:
+                print(f"[ERROR] API-Aufruf an Vereinsflieger fehlgeschlagen: {e}")
+
     db.commit()
-    print("✅ [DEBUG] Transaktion abgeschlossen")
-
+    print("[DEBUG] Transaktion abgeschlossen")
     return {"message": "Transaktion gespeichert", "transaction_id": db_trans.id}
-
 
 @app.get("/users", response_model=list[schemas.UserOut])
 def get_users(db: Session = Depends(get_db)):
@@ -286,21 +285,6 @@ def import_users_from_vereinsflieger(db: Session = Depends(get_db)):
         print(f"ERROR: Fehler beim Access-Token: {e}")
         raise HTTPException(status_code=500, detail=f"Tokenfehler: {str(e)}")
 
-    login_payload = {
-        "accesstoken": accesstoken,
-        "username": username,
-        "password": hashlib.md5(password.encode()).hexdigest(),
-        "appkey": appkey,
-        "cid": cid
-    }
-
-    print("DEBUG: Sende Login-Request...")
-    signin = requests.post(f"{base_url}/auth/signin", data=login_payload)
-    print(f"DEBUG: Login-Response-Code: {signin.status_code}")
-    if signin.status_code != 200:
-        print(f"ERROR: Anmeldung fehlgeschlagen: {signin.text}")
-        raise HTTPException(status_code=401, detail=f"Anmeldung fehlgeschlagen: {signin.text}")
-
     print("DEBUG: Hole Mitgliederliste...")
     member_response = requests.post(f"{base_url}/user/list", data={"accesstoken": accesstoken})
     print(f"DEBUG: Mitgliederliste-Response-Code: {member_response.status_code}")
@@ -367,7 +351,7 @@ def import_users_from_vereinsflieger(db: Session = Depends(get_db)):
         
         print(f"DEBUG: UID aus API: {m.get('uid')}")    
         print(f"DEBUG: Benutzer wird hinzugefügt: {username}")
-        user = models.User(username=username, rfid=rfid, password=None, vf_uid=m.get("uid"))
+        user = models.User(username=username, rfid=rfid, password=None, vf_memberid=m.get("memberid"))
         db.add(user)
         created_users.append(username)
 

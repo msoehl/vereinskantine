@@ -54,16 +54,18 @@ class UserCreate(BaseModel):
     username: str
     rfid: str
     password: str
+    vf_memberid: Optional[int] = None
 
 class UserUpdate(BaseModel):
     username: str
     rfid: str
     password: Optional[str] = None
+    vf_memberid: Optional[int] = None
 
 class UserOut(BaseModel):
     id: int
     username: str
     rfid: str
-    vf_uid: int
+    vf_memberid: Optional[int] = None
     class Config:
         from_attributes = True

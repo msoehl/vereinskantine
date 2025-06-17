@@ -78,6 +78,13 @@ class KantinenUI(App):
         # Rechte Seite
         right_area = BoxLayout(orientation='vertical', size_hint=(0.3, 1), padding=(10, 0))
 
+        top_buttons = BoxLayout(
+            orientation='vertical',
+            size_hint=(1, None),
+            height=105,
+            spacing=5
+        )
+
         change_user_btn = Button(
             text="Benutzer wechseln",
             size_hint=(1, None),
@@ -87,7 +94,20 @@ class KantinenUI(App):
             font_size='16sp'
         )
         change_user_btn.bind(on_press=lambda instance: self.show_rfid_popup())
-        right_area.add_widget(change_user_btn)
+
+        guest_btn = Button(
+            text="Gastverkauf starten",
+            size_hint=(1, None),
+            height=50,
+            background_color=(0.1, 0.5, 0.1, 1),
+            color=(1, 1, 1, 1),
+            font_size='16sp'
+        )
+        guest_btn.bind(on_press=self.set_guest_user)
+
+        top_buttons.add_widget(change_user_btn)
+        top_buttons.add_widget(guest_btn)
+        right_area.add_widget(top_buttons)
 
         self.summary = Label(
             text="Gesamt: € 0.00",
@@ -131,6 +151,16 @@ class KantinenUI(App):
         except Exception as e:
             self.users = []
             print("Fehler beim Abrufen der Nutzer:", e)
+    
+    def set_guest_user(self, *args):
+        self.user_id = 9999
+        self.user_name = "Gast"
+        self.items = []
+        self.item_counts = {}
+        self.total = 0.0
+        self.header.text = "Gastverkauf aktiv"
+        self.update_summary()
+        self.load_products()
 
     def select_user_popup(self):
         from kivy.uix.popup import Popup
@@ -238,6 +268,23 @@ class KantinenUI(App):
         except:
             return False
     
+    def handle_guest_rfid(self, window, key, scancode, codepoint, modifiers):
+        if key == 13:  # Enter gedrückt
+            rfid = self.guest_rfid_buffer.strip()
+            self.guest_rfid_buffer = ""
+            matched = next((u for u in self.users if str(u.get("rfid")) == str(rfid)), None)
+            print("Gastverkauf RFID erkannt:", rfid)
+            if matched:
+                comment = f"Gastverkauf durch {matched['username']} (ID {matched['id']})"
+                data = self.guest_transaction_data
+                self.complete_transaction(data["product_data"], data["total"], comment)
+                self.rfid_popup_guest.dismiss()
+                Window.unbind(on_key_down=self.handle_guest_rfid)
+            else:
+                self.rfid_status_guest.text = f"Unbekannter RFID: {rfid}"
+        elif codepoint:
+            self.guest_rfid_buffer += codepoint
+
     def reset_inactivity_timer(self, *args):
         from kivy.clock import Clock
         if not self.user_id:
@@ -351,15 +398,23 @@ class KantinenUI(App):
         self.load_products()
 
     def finish(self, instance):
-        kasten_anzahl = sum(
-        count
-        for pid, count in self.item_counts.items()
-        for cat_items in self.products_by_category.values()
-        for product in cat_items.values()
-        if product["id"] == pid and product["name"].lower() == "kasten"
-        )
+        product_data, total = self.prepare_transaction()
+        if self.user_id == 9999:
+            self.ask_for_guest_author(product_data, total)
+        else:
+            self.complete_transaction(product_data, total)
+
+    def prepare_transaction(self):
         product_data = []
         total = 0.0
+
+        kasten_anzahl = sum(
+            count
+            for pid, count in self.item_counts.items()
+            for cat_items in self.products_by_category.values()
+            for product in cat_items.values()
+            if product["id"] == pid and product["name"].lower() == "kasten"
+        )
 
         if kasten_anzahl:
             product_data = [{"product_id": i["id"], "product_name": i["name"], "price": i["price"]} for i in self.items]
@@ -383,13 +438,69 @@ class KantinenUI(App):
                         "price": i["price"]
                     })
             total = sum(p["price"] for p in product_data)
-
         else:
-            total = self.total
             product_data = [{"product_id": i["id"], "product_name": i["name"], "price": i["price"]} for i in self.items]
+            total = self.total
 
+        return product_data, total
+
+    def ask_for_guest_author(self, product_data, total):
+        from kivy.uix.popup import Popup
+        from kivy.uix.label import Label
+        from kivy.uix.boxlayout import BoxLayout
+        from kivy.uix.button import Button
+        from kivy.core.window import Window
+        
+        Window.unbind(on_key_down=self.handle_rfid_key)
+        self.guest_rfid_buffer = ""
+        self.guest_transaction_data = {"product_data": product_data, "total": total}
+
+        layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
+        self.rfid_status_guest = Label(text="Mitglied bitte RFID scannen", font_size='20sp')
+        layout.add_widget(self.rfid_status_guest)
+
+        cancel_btn = Button(text="Abbrechen", size_hint=(1, None), height=44)
+        layout.add_widget(cancel_btn)
+
+        self.rfid_popup_guest = Popup(
+            title='Mitglied zuordnen (Gastverkauf)',
+            content=layout,
+            size_hint=(None, None),
+            size=(400, 200),
+            auto_dismiss=False
+        )
+
+        def cancel_action(instance):
+            self.items = []
+            self.item_counts = {} 
+            self.total = 0.0
+            self.user_id = None
+            self.user_name = None
+            self.load_products_from_backend()
+            self.load_users()
+            self.header.text = "Willkommen!"
+            self.update_summary()
+            self.rfid_popup_guest.dismiss()
+            Window.unbind(on_key_down=self.handle_guest_rfid)
+            Window.bind(on_key_down=self.handle_rfid_key)
+            self.show_rfid_popup()
+
+        cancel_btn.bind(on_press=cancel_action)
+
+        self.rfid_popup_guest.open()
+        Window.bind(on_key_down=self.handle_guest_rfid)
+
+
+
+    def complete_transaction(self, product_data, total, comment=""):
         try:
-            payload = {"user_id": self.user_id, "items": product_data, "total": total,"vfl_enabled": self.is_vfl_enabled()}
+            payload = {
+                "user_id": self.user_id,
+                "items": product_data,
+                "total": total,
+                "comment": comment,
+                "vfl_enabled": self.is_vfl_enabled()
+            }
             response = requests.post("http://localhost:8000/transaction", json=payload)
             if response.status_code == 200:
                 print("Transaktion erfolgreich gespeichert.")
@@ -399,14 +510,16 @@ class KantinenUI(App):
         self.items = []
         self.item_counts = {} 
         self.total = 0.0
+        self.user_id = None
+        self.user_name = None
         self.load_products_from_backend()
         self.load_users()
         self.load_products()
-        self.user_id = None
-        self.user_name = None
         self.header.text = "Willkommen!"
         self.update_summary()
         self.show_rfid_popup()
+
+
 
     def update_summary(self):
         text = f"Benutzer: {self.user_name or '–'}\n\nEinkauf:\n"

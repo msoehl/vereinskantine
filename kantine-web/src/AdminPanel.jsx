@@ -97,7 +97,7 @@ export default function AdminPanel() {
   const [category, setCategory] = useState("");
   const [username, setUsername] = useState("");
   const [rfid, setRfid] = useState("");
-  const [vfuid, setvfuid] = useState("");
+  const [vfMemberid, setVfMemberid] = useState("");
   const [userPassword, setUserPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordMessage, setPasswordMessage] = useState("");
@@ -110,7 +110,7 @@ export default function AdminPanel() {
   const [editUsername, setEditUsername] = useState("");
   const [editRfid, setEditRfid] = useState("");
   const [editPassword, setEditPassword] = useState("");
-  const [editvfuid, setEditvfuid] = useState("");
+  const [editVfMemberid, setEditVfMemberid] = useState("");
   const [editVflArticleId, setEditVflArticleId] = useState("");
   const [editSalestax, setEditSalestax] = useState("");
 
@@ -276,7 +276,7 @@ const startEditUser = (user) => {
   setEditUsername(user.username);
   setEditRfid(user.rfid);
   setEditPassword("");
-  setEditvfuid(user.vf_uid || "");
+  setEditVfMemberid(user.vf_memberid || "");
 };
 
 const saveUserEdit = async () => {
@@ -287,7 +287,7 @@ const saveUserEdit = async () => {
   const payload = {
     username: editUsername,
     rfid: editRfid,
-    vf_uid: parseInt(editvfuid) || null
+    vf_memberid: parseInt(editVfMemberid) || null
   };
   if (editPassword.trim() !== "") {
     payload.password = editPassword;
@@ -341,7 +341,7 @@ const addProduct = async () => {
     const res = await fetch("/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, rfid, password: userPassword, vf_uid: parseInt(vfuid) })
+      body: JSON.stringify({ username, rfid, password: userPassword, vf_memberid: parseInt(vfMemberid) })
     });
 
     if (!res.ok) {
@@ -583,7 +583,7 @@ const addProduct = async () => {
             <div className="p-4 grid grid-cols-4 gap-2">
               <input placeholder="Benutzername" value={username} onChange={e => setUsername(e.target.value)} />
               <input placeholder="RFID" value={rfid} onChange={e => setRfid(e.target.value)} />
-              <input placeholder="VF UID" value={vfuid} onChange={e => setvfuid(e.target.value)} />
+              <input placeholder="Mitgliedsnummer" value={vfMemberid} onChange={e => setVfMemberid(e.target.value)} />
               <input placeholder="Passwort" type="password" value={userPassword} onChange={e => setUserPassword(e.target.value)} />
               <button onClick={addUser}>Benutzer hinzufügen</button>
             </div>
@@ -597,7 +597,7 @@ const addProduct = async () => {
                     <th>ID</th>
                     <th>Name</th>
                     <th>RFID</th>
-                    <th>Vereinsflieger UID</th>
+                    <th>Mitgliedsnummer</th>
                     <th>Bearbeiten / Löschen</th>
                   </tr>
                 </thead>
@@ -607,7 +607,7 @@ const addProduct = async () => {
                       <td>{u.id}</td>
                       <td>{u.username}</td>
                       <td>{u.rfid}</td>
-                      <td>{u.vf_uid}</td>
+                      <td>{u.vf_memberid}</td>
                       <td>
                       <div className="button-group">
                         <button onClick={() => startEditUser(u)} className="bg-yellow-400 px-2 py-1 rounded">Bearbeiten</button>
@@ -629,7 +629,7 @@ const addProduct = async () => {
             <div className="grid gap-2">
               <input className="p-2 border rounded" placeholder="Benutzername" value={editUsername} onChange={(e) => setEditUsername(e.target.value)} />
               <input className="p-2 border rounded" placeholder="RFID" value={editRfid} onChange={(e) => setEditRfid(e.target.value)} />
-              <input className="p-2 border rounded" placeholder="VF UID" value={editvfuid} onChange={(e) => setEditVfuid(e.target.value)} />
+              <input className="p-2 border rounded" placeholder="Mitgliedsnummer" value={editVfMemberid} onChange={(e) => setEditVfMemberid(e.target.value)} />
               <input className="p-2 border rounded" type="password" placeholder="Neues Passwort" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} />
               <div className="modal-buttons">
                 <button onClick={saveUserEdit}>Speichern</button>
