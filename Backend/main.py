@@ -82,11 +82,19 @@ def get_vfl_token():
 
     return updated_token
 
-@app.post("/vfl-settings")
-def set_vfl_enabled(setting: dict):
+@app.post("/settings")
+def update_settings(setting: dict):
     with open("settings.json", "w") as f:
         json.dump(setting, f)
     return {"status": "ok"}
+
+@app.get("/settings")
+def get_settings():
+    try:
+        with open("settings.json", "r") as f:
+            return json.load(f)
+    except:
+        return {}
 
 @app.get("/products", response_model=list[schemas.ProductOut])
 def get_products(db: Session = Depends(get_db)):

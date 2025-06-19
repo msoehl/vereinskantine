@@ -87,6 +87,7 @@ export default function AdminPanel() {
   const [view, setView] = useState("products");
   const [selectedMonth, setSelectedMonth] = useState(() => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;});
   const [useVFL, setUseVFL] = useState(() => { return localStorage.getItem("vflEnabled") === "true";});
+  const [useGuest, setUseGuest] = useState(() => { return localStorage.getItem("guestEnabled") === "true";});
   const [products, setProducts] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [users, setUsers] = useState([]);
@@ -150,17 +151,28 @@ export default function AdminPanel() {
     };
   }, [loggedIn]);
 
-  const toggleVfl = () => {
-    const newValue = !useVFL;
+const toggleSetting = (key, value) => {
+  const newValue = !value;
+
+  if (key === "vfl_enabled") {
     setUseVFL(newValue);
     localStorage.setItem("vflEnabled", String(newValue));
+  }
 
-    fetch("/vfl-settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ vfl_enabled: newValue }),
-    });
-  };
+  if (key === "guest_enabled") {
+    setUseGuest(newValue);
+    localStorage.setItem("guestEnabled", String(newValue));
+  }
+
+  fetch("/vfl-settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      vfl_enabled: key === "vfl_enabled" ? newValue : useVFL,
+      guest_enabled: key === "guest_enabled" ? newValue : useGuest,
+    }),
+  });
+};
 
   const importUsers = async () => {
     const res = await fetch("/import-users", { method: "POST" });
@@ -417,8 +429,12 @@ const addProduct = async () => {
             {passwordMessage && <div className={`mt-2 ${passwordSuccess ? "text-green-600" : "text-red-500"}`}>{passwordMessage}</div>}
           </div>
           <div className="flex items-center gap-2">
-            <input type="checkbox" checked={useVFL} onChange={toggleVfl} />
-            <label className="ml-2">Vereinsflieger Integration aktivieren</label>
+          <input type="checkbox" checked={useVFL} onChange={() => toggleSetting("vfl_enabled", useVFL)}/>
+          <label className="ml-2">Vereinsflieger Integration aktivieren</label>
+          </div>
+         <div className="flex items-center gap-2">
+          <input type="checkbox" checked={useGuest} onChange={() => toggleSetting("guest_enabled", useGuest)}/>
+          <label className="ml-2">Gästeverkauf aktivieren</label>
           </div>
         </div>
       )}

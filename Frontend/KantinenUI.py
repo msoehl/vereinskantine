@@ -27,7 +27,8 @@ class KantinenUI(App):
         self.freigetraenke_counter = 0
 
         Clock.schedule_once(lambda dt: self.load_users(), 0.1)
-        Clock.schedule_interval(lambda dt: self.load_users(), 150)
+        Clock.schedule_interval(lambda dt: self.load_users(), 10)
+        Clock.schedule_interval(lambda dt: self.load_settings(), 60)
 
         self.products_by_category = {
             "Getränke": {},
@@ -213,8 +214,9 @@ class KantinenUI(App):
 
         layout.add_widget(self.rfid_status)
         layout.add_widget(manual_button)
-        layout.add_widget(guest_button)
-
+        if self.guest_enabled:
+            layout.add_widget(guest_button)
+       
         self.rfid_popup = Popup(
             title='RFID Login',
             content=layout,
@@ -230,7 +232,7 @@ class KantinenUI(App):
         def guest_login(instance):
             self.rfid_popup.dismiss()
             Window.unbind(on_key_down=self.handle_rfid_key)
-            self.set_guest_user
+            self.set_guest_user()
 
         manual_button.bind(on_press=manual_login)
         guest_button.bind(on_press=guest_login)
@@ -258,12 +260,20 @@ class KantinenUI(App):
                 self.rfid_status.text = "Unbekannter RFID – erneut versuchen"
         elif codepoint:
             self.rfid_buffer += codepoint
-    def is_vfl_enabled(self):
+    
+    def load_settings(self):
         try:
-            with open("settings.json", "r") as f:
-                return json.load(f).get("vfl_enabled", False)
+            response = requests.get("http://localhost:8000/settings")
+            if response.status_code == 200:
+                settings = response.json()
+                self.guest_enabled = settings.get("guest_enabled", True)
+                self.vfl_enabled = settings.get ("vfl_enabled", False)
+            else:
+                self.guest_enabled = True
+                self.vfl_enabled = False
         except:
-            return False
+            self.guest_enabled = True
+            self.vfl_enabled = False
     
     def handle_guest_rfid(self, window, key, scancode, codepoint, modifiers):
         if key == 13:  # Enter gedrückt
@@ -497,7 +507,7 @@ class KantinenUI(App):
                 "items": product_data,
                 "total": total,
                 "comment": comment,
-                "vfl_enabled": self.is_vfl_enabled()
+                "vfl_enabled": self.vfl_enabled
             }
             response = requests.post("http://localhost:8000/transaction", json=payload)
             if response.status_code == 200:
