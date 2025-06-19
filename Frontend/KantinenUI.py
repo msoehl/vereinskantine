@@ -25,6 +25,8 @@ class KantinenUI(App):
         self.user_id = None
         self.user_name = None
         self.freigetraenke_counter = 0
+        self.guest_enabled = False
+        self.vfl_enabled = False
 
         Clock.schedule_once(lambda dt: self.load_users(), 0.1)
         Clock.schedule_interval(lambda dt: self.load_users(), 10)
@@ -94,7 +96,7 @@ class KantinenUI(App):
             color=(1, 1, 1, 1),
             font_size='16sp'
         )
-        change_user_btn.bind(on_press=lambda instance: self.show_rfid_popup())
+        change_user_btn.bind(on_press=self.change_user)
 
         top_buttons.add_widget(change_user_btn)
         right_area.add_widget(top_buttons)
@@ -142,6 +144,20 @@ class KantinenUI(App):
             self.users = []
             print("Fehler beim Abrufen der Nutzer:", e)
     
+    def change_user(self, *args):
+        self.items = []
+        self.item_counts = {} 
+        self.total = 0.0
+        self.user_id = None
+        self.user_name = None
+        self.load_products_from_backend()
+        self.load_users()
+        self.load_products()
+        self.header.text = "Willkommen!"
+        self.update_summary()
+        self.show_rfid_popup()
+
+
     def set_guest_user(self, *args):
         self.user_name = "Gast"
         self.items = []
